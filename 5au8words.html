@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Unit 8 At Christmas - Tim's App</title>
+    <!-- 引入 Tailwind CSS (这是唯一的在线依赖，如果没有网络会变成无样式，但仍能运行) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #FEF2F2; /* red-50 */
+            color: #1F2937;
+            overflow: hidden;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* 3D 翻转效果 */
+        .card-container {
+            perspective: 1000px;
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+        .card-inner.is-flipped {
+            transform: rotateY(180deg);
+        }
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            border-radius: 1.5rem; /* rounded-3xl */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); /* shadow-xl */
+        }
+        .card-front {
+            background-color: white;
+            border: 4px solid #FEE2E2; /* border-red-100 */
+        }
+        .card-back {
+            background-color: #DC2626; /* bg-red-600 */
+            color: white;
+            transform: rotateY(180deg);
+            border: 4px solid #4ADE80; /* border-green-400 */
+        }
+
+        /* 动画类 */
+        .animate-bounce-slow { animation: bounce 3s infinite; }
+        .animate-fade-in { animation: fadeIn 0.5s ease-out; }
+        .hidden { display: none !important; }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(-5%); }
+            50% { transform: translateY(5%); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 水印 */
+        .watermark {
+            position: fixed;
+            bottom: 10px;
+            right: 15px;
+            color: rgba(0, 0, 0, 0.2);
+            font-size: 12px;
+            font-weight: 600;
+            pointer-events: none;
+            font-family: 'Courier New', Courier, monospace;
+            z-index: 50;
+        }
+
+        /* 滚动条 */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        
+        /* 雪花 */
+        .snowflake {
+            position: fixed;
+            top: -10px;
+            color: #d1fae5;
+            font-size: 1em;
+            font-family: Arial;
+            text-shadow: 0 0 1px #000;
+            z-index: 0;
+            animation-name: snowflakes-fall, snowflakes-shake;
+            animation-duration: 10s, 3s;
+            animation-timing-function: linear, ease-in-out;
+            animation-iteration-count: infinite, infinite;
+        }
+        @keyframes snowflakes-fall { 0% { top: -10%; } 100% { top: 100%; } }
+        @keyframes snowflakes-shake { 0% { transform: translateX(0px); } 50% { transform: translateX(80px); } 100% { transform: translateX(0px); } }
+        
+        /* 禁用状态 */
+        .btn-disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+    <!-- 水印 -->
+    <div class="watermark">Created by Tim</div>
+
+    <!-- 雪花装饰 (静态生成几个以减少JS负担) -->
+    <div class="snowflake" style="left: 10%; animation-delay: 0s, 0s">❅</div>
+    <div class="snowflake" style="left: 30%; animation-delay: 4s, 2s">❆</div>
+    <div class="snowflake" style="left: 50%; animation-delay: 2s, 1s">❅</div>
+    <div class="snowflake" style="left: 70%; animation-delay: 5s, 0s">❆</div>
+    <div class="snowflake" style="left: 90%; animation-delay: 1s, 2s">❅</div>
+
+    <!-- 1. 启动界面 -->
+    <div id="start-screen" class="fixed inset-0 z-20 flex flex-col items-center justify-center p-4">
+        <div class="bg-white/90 backdrop-blur-md rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl border-2 border-red-100 animate-fade-in">
+            <div class="mb-6 inline-block bg-red-100 p-4 rounded-full shadow-inner">
+                <svg class="w-20 h-20 text-green-600 animate-bounce-slow" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 2l8 8h-4v10H8V10H4l8-8z"/><rect x="10" y="20" width="4" height="4"/></svg>
+            </div>
+            <h1 class="text-4xl font-extrabold mb-2 tracking-tight text-red-600">Unit 8</h1>
+            <h2 class="text-2xl font-bold mb-6 text-green-700">At Christmas</h2>
+            <p className="mb-8 text-gray-600 text-sm">Review vocabulary with Tim!</p>
+            <button onclick="app.startGame()" class="w-full py-4 rounded-2xl bg-red-600 text-white font-bold text-xl shadow-lg hover:bg-red-700 active:scale-95 transition-all flex items-center justify-center space-x-2">
+                <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                <span>Start / 开始</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- 2. 游戏主界面 -->
+    <div id="game-screen" class="hidden fixed inset-0 z-20 flex flex-col items-center w-full h-full">
+        <!-- Header -->
+        <header class="w-full bg-red-600 text-white p-4 shadow-md flex justify-between items-center z-30">
+            <div class="flex items-center space-x-2">
+                <svg class="w-6 h-6 text-green-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 2l8 8h-4v10H8V10H4l8-8z"/></svg>
+                <h1 class="text-lg font-bold">Unit 8 At Christmas</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <div id="progress-text" class="text-sm opacity-90 hidden sm:block">1 / 10</div>
+                <div class="bg-red-800 px-3 py-1 rounded-full flex items-center space-x-1 border border-red-700">
+                    <svg class="w-4 h-4 text-yellow-400 fill-current" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    <span id="score-text" class="font-bold">0</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-1 w-full max-w-md p-6 flex flex-col items-center justify-center animate-fade-in" style="height: calc(100% - 64px);">
+            <!-- 进度条 -->
+            <div class="w-full bg-gray-200 h-2 rounded-full mb-8 overflow-hidden flex-shrink-0">
+                <div id="progress-bar" class="bg-green-500 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+
+            <!-- 卡片容器 -->
+            <div class="card-container mb-6 cursor-pointer" onclick="app.handleCardClick()">
+                <div id="card-inner" class="card-inner">
+                    <!-- 正面 -->
+                    <div class="card-face card-front">
+                        <span id="card-emoji" class="text-8xl mb-6 animate-bounce-slow filter drop-shadow-md">🎄</span>
+                        <h3 id="card-zh" class="text-5xl font-bold text-gray-800 tracking-wider mb-2">圣诞节</h3>
+                        <p id="card-type" class="text-gray-400 text-sm font-medium mb-6 italic">n.</p>
+                        <p class="text-red-400 mt-2 text-sm font-medium bg-red-50 px-4 py-2 rounded-full border border-red-100">点击查看英文</p>
+                    </div>
+                    <!-- 背面 -->
+                    <div class="card-face card-back relative">
+                         <!-- 播放按钮 -->
+                         <button onclick="event.stopPropagation(); app.speakCurrent();" class="absolute top-4 right-4 p-3 bg-white/20 hover:bg-white/30 rounded-full transition backdrop-blur-sm z-20">
+                            <svg class="w-6 h-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg>
+                         </button>
+                        <h3 id="card-en" class="text-4xl font-bold mb-6 text-yellow-300 tracking-tight break-words w-full px-4">Christmas</h3>
+                        <div class="w-16 h-1 bg-white/30 rounded-full mb-8"></div>
+                        <div class="bg-red-700/50 p-6 rounded-xl w-full border border-red-500 mx-4">
+                            <p id="card-sentence" class="text-lg leading-relaxed font-medium">"Christmas is coming!"</p>
+                        </div>
+                        <p class="mt-8 text-red-200 text-sm">再点一下翻回去</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 按钮区 -->
+            <div class="flex items-center justify-between w-full mt-auto space-x-3 pb-6 flex-shrink-0">
+                <button id="btn-prev" onclick="app.prevCard()" class="p-4 rounded-2xl bg-white text-gray-500 font-bold shadow-sm border border-gray-100 hover:bg-gray-50 active:scale-95 transition">
+                    <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                </button>
+
+                <button id="btn-skip" onclick="app.nextCard()" class="flex-1 py-4 rounded-2xl bg-white text-gray-600 font-bold border-2 border-gray-100 hover:bg-gray-50 active:scale-95 transition flex items-center justify-center space-x-2">
+                    <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                    <span id="btn-skip-text">跳过</span>
+                </button>
+                
+                <button id="btn-learn" onclick="app.markLearned()" class="flex-[2] py-4 rounded-2xl bg-green-500 text-white font-bold shadow-lg hover:bg-green-600 active:scale-95 transition flex items-center justify-center space-x-2">
+                    <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+                    <span id="btn-learn-text">我记住了</span>
+                </button>
+            </div>
+        </main>
+    </div>
+
+    <!-- 3. 结算界面 -->
+    <div id="result-screen" class="hidden fixed inset-0 z-20 flex flex-col items-center p-4 h-full">
+        <div class="bg-white rounded-3xl shadow-xl p-6 max-w-md w-full text-center animate-fade-in border-4 border-red-200 mt-4 mb-4 flex flex-col h-full max-h-[85vh]">
+            <div class="flex-shrink-0">
+                <svg class="w-16 h-16 text-red-500 mx-auto mb-4 animate-bounce" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20 12v10H4V12M22 7H2v5h20V7zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+                <h2 class="text-2xl font-bold text-red-700 mb-1">Merry Christmas!</h2>
+                <p class="text-gray-500 mb-4">Unit 8 完成!</p>
+                
+                <div class="bg-green-50 rounded-xl p-4 mb-4 border border-green-100 flex justify-around">
+                    <div class="text-center border-r border-green-200 pr-4">
+                        <p class="text-xs text-gray-500 mb-1">得分 XP</p>
+                        <p id="final-score" class="text-2xl font-bold text-green-600">0</p>
+                    </div>
+                    <div class="text-center pl-4">
+                        <p class="text-xs text-gray-500 mb-1">掌握</p>
+                        <p id="final-learned" class="text-2xl font-bold text-red-500">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 列表 -->
+            <div id="word-list" class="flex-1 overflow-y-auto custom-scrollbar mb-4 bg-gray-50 rounded-lg p-2 border border-gray-100 text-left space-y-2">
+                <!-- JS 会填充这里 -->
+            </div>
+
+            <button onclick="app.restartGame()" class="w-full py-3 flex-shrink-0 rounded-2xl bg-red-600 text-white font-bold text-lg shadow-lg hover:bg-red-700 active:scale-95 transition flex items-center justify-center space-x-2">
+                <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                <span>Play Again</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 数据
+        const VOCABULARY = [
+            { id: 1, en: "Christmas", zh: "圣诞节", type: "n.", emoji: "🎄", sentence: "We always have a lot of fun at Christmas." },
+            { id: 2, en: "buy", zh: "买", type: "v.", emoji: "🛍️", sentence: "First, we buy presents for our family." },
+            { id: 3, en: "present", zh: "礼物", type: "n.", emoji: "🎁", sentence: "We open our presents on Christmas Day." },
+            { id: 4, en: "Christmas tree", zh: "圣诞树", type: "n.", emoji: "🎄", sentence: "We buy a Christmas tree." },
+            { id: 5, en: "Father Christmas", zh: "圣诞老人", type: "n.", emoji: "🎅", sentence: "We go to see Father Christmas." },
+            { id: 6, en: "next", zh: "接着，然后", type: "adv.", emoji: "👉", sentence: "Next, we put pretty things on the tree." },
+            { id: 7, en: "put", zh: "放", type: "v.", emoji: "👐", sentence: "We put a stocking on our beds." },
+            { id: 8, en: "pretty", zh: "漂亮的", type: "adj.", emoji: "✨", sentence: "The Christmas tree looks pretty." },
+            { id: 9, en: "thing", zh: "物品，东西", type: "n.", emoji: "🧸", sentence: "We put pretty things on the Christmas tree." },
+            { id: 10, en: "look", zh: "看起来", type: "v.", emoji: "👀", sentence: "It looks great!" },
+            { id: 11, en: "Christmas Eve", zh: "圣诞夜，平安夜", type: "n.", emoji: "🌙", sentence: "Then, Christmas Eve comes." },
+            { id: 12, en: "stocking", zh: "长筒袜", type: "n.", emoji: "🧦", sentence: "We put a stocking on our beds." },
+            { id: 13, en: "wait for", zh: "等候，等待", type: "v. phr.", emoji: "⏳", sentence: "We wait for presents." },
+            { id: 14, en: "finally", zh: "最后", type: "adv.", emoji: "🏁", sentence: "Finally, it is Christmas Day!" },
+            { id: 15, en: "Christmas Day", zh: "圣诞节(当天)", type: "n.", emoji: "🎉", sentence: "We have a big lunch on Christmas Day." },
+            { id: 16, en: "early", zh: "早早地", type: "adv.", emoji: "🌅", sentence: "We wake up early." },
+            { id: 17, en: "turkey", zh: "火鸡", type: "n.", emoji: "🦃", sentence: "We eat a turkey." },
+            { id: 18, en: "pudding", zh: "布丁", type: "n.", emoji: "🍮", sentence: "We eat Christmas pudding." },
+            { id: 19, en: "all", zh: "全都", type: "adv.", emoji: "👨‍👩‍👧‍👦", sentence: "We all have a good time!" },
+            { id: 20, en: "have a good time", zh: "过得愉快", type: "v. phr.", emoji: "🥳", sentence: "We all have a good time!" },
+            { id: 21, en: "card", zh: "卡片", type: "n.", emoji: "💌", sentence: "Here is a Christmas card for you." },
+            { id: 22, en: "children", zh: "孩子", type: "n.", emoji: "👶", sentence: "The children are happy." },
+            { id: 23, en: "message", zh: "信息", type: "n.", emoji: "📝", sentence: "Write your message on the card." },
+            { id: 24, en: "Merry Christmas!", zh: "圣诞快乐!", type: "phrase", emoji: "🎉", sentence: "Merry Christmas!" },
+            { id: 25, en: "song", zh: "歌曲", type: "n.", emoji: "🎵", sentence: "They sing Christmas songs." },
+            { id: 26, en: "What's wrong with ...?", zh: "……怎么了？", type: "phrase", emoji: "❓", sentence: "What's wrong with him?" },
+            { id: 27, en: "him", zh: "他(宾格)", type: "pron.", emoji: "👦", sentence: "What's wrong with him?" },
+            { id: 28, en: "us", zh: "我们(宾格)", type: "pron.", emoji: "👥", sentence: "People eat us on Christmas Day!" },
+            { id: 29, en: "letter", zh: "信", type: "n.", emoji: "✉️", sentence: "I sometimes write him a letter." },
+            { id: 30, en: "storybook", zh: "故事书", type: "n.", emoji: "📖", sentence: "I read a storybook after dinner." },
+            { id: 31, en: "after", zh: "在……以后", type: "prep.", emoji: "🕒", sentence: "I read a storybook after dinner." }
+        ];
+
+        // 逻辑控制
+        const app = {
+            currentIndex: 0,
+            score: 0,
+            learnedCount: 0,
+            isFlipped: false,
+            isTransitioning: false,
+            audioCtx: null,
+
+            init: function() {
+                // 预加载语音
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.getVoices();
+                }
+            },
+
+            playSound: function(type) {
+                try {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (!AudioContext) return;
+                    if (!this.audioCtx) this.audioCtx = new AudioContext();
+                    if (this.audioCtx.state === 'suspended') this.audioCtx.resume();
+
+                    const ctx = this.audioCtx;
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    const now = ctx.currentTime;
+
+                    if (type === 'pop') {
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(400, now);
+                        osc.frequency.exponentialRampToValueAtTime(600, now + 0.1);
+                        gain.gain.setValueAtTime(0.1, now);
+                        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                        osc.start(now);
+                        osc.stop(now + 0.1);
+                    } else if (type === 'win') {
+                        const notes = [523.25, 659.25, 783.99, 1046.50];
+                        notes.forEach((freq, i) => {
+                            const oscN = ctx.createOscillator();
+                            const gainN = ctx.createGain();
+                            oscN.connect(gainN);
+                            gainN.connect(ctx.destination);
+                            oscN.type = 'triangle';
+                            oscN.frequency.value = freq;
+                            const startTime = now + i * 0.1;
+                            gainN.gain.setValueAtTime(0, startTime);
+                            gainN.gain.linearRampToValueAtTime(0.1, startTime + 0.05);
+                            gainN.gain.exponentialRampToValueAtTime(0.01, startTime + 0.5);
+                            oscN.start(startTime);
+                            oscN.stop(startTime + 0.5);
+                        });
+                    }
+                } catch(e) { console.log(e); }
+            },
+
+            speak: function(text) {
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.lang = 'en-US';
+                    // 尝试选择更好的声音
+                    const voices = window.speechSynthesis.getVoices();
+                    const bestVoice = voices.find(v => v.name.includes("Google US English") || v.name.includes("Microsoft Zira"));
+                    if(bestVoice) utterance.voice = bestVoice;
+                    utterance.rate = 0.9;
+                    window.speechSynthesis.speak(utterance);
+                }
+            },
+            
+            speakCurrent: function() {
+                const card = VOCABULARY[this.currentIndex];
+                this.speak(card.en);
+            },
+
+            startGame: function() {
+                this.playSound('pop');
+                document.getElementById('start-screen').classList.add('hidden');
+                document.getElementById('game-screen').classList.remove('hidden');
+                this.updateCard();
+            },
+
+            updateCard: function() {
+                const card = VOCABULARY[this.currentIndex];
+                document.getElementById('card-emoji').textContent = card.emoji;
+                document.getElementById('card-zh').textContent = card.zh;
+                document.getElementById('card-type').textContent = card.type;
+                document.getElementById('card-en').textContent = card.en;
+                document.getElementById('card-sentence').textContent = '"' + card.sentence + '"';
+                
+                // Reset flip
+                this.isFlipped = false;
+                document.getElementById('card-inner').classList.remove('is-flipped');
+
+                // Update UI
+                document.getElementById('score-text').textContent = this.score;
+                document.getElementById('progress-text').textContent = `${this.currentIndex + 1} / ${VOCABULARY.length}`;
+                document.getElementById('progress-bar').style.width = `${(this.currentIndex / VOCABULARY.length) * 100}%`;
+                
+                // Button states
+                const isLast = this.currentIndex === VOCABULARY.length - 1;
+                document.getElementById('btn-skip-text').textContent = isLast ? "结束" : "跳过";
+                document.getElementById('btn-learn-text').textContent = isLast ? "完成 (+10)" : "我记住了";
+                
+                const prevBtn = document.getElementById('btn-prev');
+                if (this.currentIndex === 0) prevBtn.classList.add('btn-disabled');
+                else prevBtn.classList.remove('btn-disabled');
+            },
+
+            handleCardClick: function() {
+                if(this.isTransitioning) return;
+                if(!this.isFlipped) this.speakCurrent();
+                this.isFlipped = !this.isFlipped;
+                document.getElementById('card-inner').classList.toggle('is-flipped');
+            },
+
+            nextCard: function() {
+                if(this.isTransitioning) return;
+                this.playSound('pop');
+                this.transition(() => {
+                    if(this.currentIndex >= VOCABULARY.length - 1) {
+                        this.showResult();
+                    } else {
+                        this.currentIndex++;
+                        this.updateCard();
+                    }
+                });
+            },
+
+            prevCard: function() {
+                if(this.isTransitioning || this.currentIndex === 0) return;
+                this.playSound('pop');
+                this.transition(() => {
+                    this.currentIndex--;
+                    this.updateCard();
+                });
+            },
+
+            markLearned: function() {
+                if(this.isTransitioning) return;
+                this.score += 10;
+                this.learnedCount++;
+                this.playSound('success'); // 这里复用 pop 或者加一个 success 音效
+                this.nextCard();
+            },
+
+            transition: function(callback) {
+                this.isTransitioning = true;
+                this.isFlipped = false;
+                document.getElementById('card-inner').classList.remove('is-flipped');
+                setTimeout(() => {
+                    callback();
+                    this.isTransitioning = false;
+                }, 300);
+            },
+
+            showResult: function() {
+                this.playSound('win');
+                document.getElementById('game-screen').classList.add('hidden');
+                document.getElementById('result-screen').classList.remove('hidden');
+                document.getElementById('final-score').textContent = this.score;
+                document.getElementById('final-learned').textContent = `${this.learnedCount}/${VOCABULARY.length}`;
+                
+                // 渲染单词列表
+                const list = document.getElementById('word-list');
+                list.innerHTML = '';
+                VOCABULARY.forEach(word => {
+                    const div = document.createElement('div');
+                    div.className = 'flex items-center p-2 bg-white rounded shadow-sm';
+                    div.innerHTML = `
+                        <span class="text-2xl mr-3">${word.emoji}</span>
+                        <div class="flex-1">
+                            <div class="flex justify-between items-baseline">
+                                <span class="font-bold text-red-700">${word.en}</span>
+                                <span class="text-xs text-gray-400 italic">${word.type}</span>
+                            </div>
+                            <div class="text-sm text-gray-600">${word.zh}</div>
+                        </div>
+                        <button onclick="app.speak('${word.en}')" class="p-2 text-gray-400 hover:text-red-500">
+                            <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg>
+                        </button>
+                    `;
+                    list.appendChild(div);
+                });
+            },
+
+            restartGame: function() {
+                this.currentIndex = 0;
+                this.score = 0;
+                this.learnedCount = 0;
+                this.isFlipped = false;
+                document.getElementById('result-screen').classList.add('hidden');
+                document.getElementById('game-screen').classList.remove('hidden');
+                this.updateCard();
+            }
+        };
+
+        // 初始化
+        app.init();
+    </script>
+</body>
+</html>
