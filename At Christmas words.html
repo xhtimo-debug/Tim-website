@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unit 8 At Christmas - 单词派对</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 React 和 ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- 引入 Babel 用于解析 JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- 自定义动画样式 -->
+    <style>
+        .perspective-1000 { perspective: 1000px; }
+        .transform-style-3d { 
+            transform-style: preserve-3d; 
+            -webkit-transform-style: preserve-3d;
+        }
+        .backface-hidden { 
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden; 
+        }
+        .my-rotate-y-180 { transform: rotateY(180deg); }
+        
+        .animate-bounce-slow { animation: bounce 3s infinite; }
+        .animate-fade-in { animation: fadeIn 0.5s ease-out; }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(-5%); }
+            50% { transform: translateY(5%); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 雪花背景动画 */
+        .snowflake {
+            position: fixed;
+            top: -10px;
+            color: #d1fae5;
+            font-size: 1em;
+            font-family: Arial;
+            text-shadow: 0 0 1px #000;
+            user-select: none;
+            z-index: 0;
+            animation-name: snowflakes-fall, snowflakes-shake;
+            animation-duration: 10s, 3s;
+            animation-timing-function: linear, ease-in-out;
+            animation-iteration-count: infinite, infinite;
+            animation-play-state: running, running;
+        }
+        @keyframes snowflakes-fall {
+            0% { top: -10%; }
+            100% { top: 100%; }
+        }
+        @keyframes snowflakes-shake {
+            0% { transform: translateX(0px); }
+            50% { transform: translateX(80px); }
+            100% { transform: translateX(0px); }
+        }
+        .snowflake:nth-of-type(1) { left: 1%; animation-delay: 0s, 0s; }
+        .snowflake:nth-of-type(2) { left: 10%; animation-delay: 1s, 1s; }
+        .snowflake:nth-of-type(3) { left: 20%; animation-delay: 6s, 0.5s; }
+        .snowflake:nth-of-type(4) { left: 30%; animation-delay: 4s, 2s; }
+        .snowflake:nth-of-type(5) { left: 40%; animation-delay: 2s, 2s; }
+        .snowflake:nth-of-type(6) { left: 50%; animation-delay: 8s, 3s; }
+        .snowflake:nth-of-type(7) { left: 60%; animation-delay: 6s, 2s; }
+        .snowflake:nth-of-type(8) { left: 70%; animation-delay: 2.5s, 1s; }
+        .snowflake:nth-of-type(9) { left: 80%; animation-delay: 1s, 0s; }
+        .snowflake:nth-of-type(10) { left: 90%; animation-delay: 3s, 1.5s; }
+    </style>
+</head>
+<body class="bg-red-50 text-gray-800 overflow-hidden">
+    <div id="root" class="relative z-10"></div>
+    
+    <!-- 简单的雪花装饰 -->
+    <div class="snowflake">❅</div>
+    <div class="snowflake">❆</div>
+    <div class="snowflake">❅</div>
+    <div class="snowflake">❆</div>
+    <div class="snowflake">❅</div>
+    <div class="snowflake">❆</div>
+    <div class="snowflake">❅</div>
+    <div class="snowflake">❆</div>
+    <div class="snowflake">❅</div>
+    <div class="snowflake">❆</div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // 图标组件
+        const Icon = ({ path, className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                {path}
+            </svg>
+        );
+
+        const Icons = {
+            Gift: (props) => <Icon {...props} path={<><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></>} />,
+            Star: (props) => <Icon {...props} path={<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>} />,
+            RotateCcw: (props) => <Icon {...props} path={<><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></>} />,
+            Check: (props) => <Icon {...props} path={<polyline points="20 6 9 17 4 12"/>} />,
+            Volume2: (props) => <Icon {...props} path={<><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></>} />,
+            Tree: (props) => <Icon {...props} path={<><polygon points="12 2 20 10 16 10 20 20 4 20 8 10 4 10 12 2"/><rect x="10" y="20" width="4" height="4"/></>} />
+        };
+
+        // -----------------------------------------------------------------------------
+        // Unit 8 词汇数据
+        // -----------------------------------------------------------------------------
+        const VOCABULARY = [
+            { id: 1, en: "Christmas", zh: "圣诞节", type: "n.", emoji: "🎄", sentence: "Christmas is coming!" },
+            { id: 2, en: "buy", zh: "买", type: "v.", emoji: "🛍️", sentence: "First, we buy presents." },
+            { id: 3, en: "present", zh: "礼物", type: "n.", emoji: "🎁", sentence: "We put our presents under the tree." },
+            { id: 4, en: "Christmas tree", zh: "圣诞树", type: "n.", emoji: "🎄", sentence: "We buy a Christmas tree." },
+            { id: 5, en: "Father Christmas", zh: "圣诞老人", type: "n.", emoji: "🎅", sentence: "We go to see Father Christmas." },
+            { id: 6, en: "next", zh: "接着，然后", type: "adv.", emoji: "👉", sentence: "Next, we put pretty things on the tree." },
+            { id: 7, en: "put", zh: "放", type: "v.", emoji: "👐", sentence: "We put a stocking on our beds." },
+            { id: 8, en: "pretty", zh: "漂亮的", type: "adj.", emoji: "✨", sentence: "We put pretty things on the tree." },
+            { id: 9, en: "thing", zh: "物品，东西", type: "n.", emoji: "🧸", sentence: "Pretty things on the Christmas tree." },
+            { id: 10, en: "look", zh: "看起来", type: "v.", emoji: "👀", sentence: "It looks great!" },
+            { id: 11, en: "Christmas Eve", zh: "平安夜", type: "n.", emoji: "🌙", sentence: "Then, Christmas Eve comes." },
+            { id: 12, en: "stocking", zh: "长筒袜", type: "n.", emoji: "🧦", sentence: "We put a stocking on our beds." },
+            { id: 13, en: "wait for", zh: "等候", type: "v. phr.", emoji: "⏳", sentence: "We wait for presents." },
+            { id: 14, en: "finally", zh: "最后", type: "adv.", emoji: "🏁", sentence: "Finally, it is Christmas Day!" },
+            { id: 15, en: "Christmas Day", zh: "圣诞节(当天)", type: "n.", emoji: "📅", sentence: "We wake up early on Christmas Day." },
+            { id: 16, en: "early", zh: "早早地", type: "adv.", emoji: "🌅", sentence: "We wake up early." },
+            { id: 17, en: "turkey", zh: "火鸡", type: "n.", emoji: "🦃", sentence: "We eat a turkey." },
+            { id: 18, en: "pudding", zh: "布丁", type: "n.", emoji: "🍮", sentence: "We eat Christmas pudding." },
+            { id: 19, en: "all", zh: "全都", type: "adv.", emoji: "👨‍👩‍👧‍👦", sentence: "We all have a good time!" },
+            { id: 20, en: "have a good time", zh: "过得愉快", type: "v. phr.", emoji: "🥳", sentence: "We all have a good time!" },
+            { id: 21, en: "card", zh: "卡片", type: "n.", emoji: "💌", sentence: "First, fold a card." },
+            { id: 22, en: "children", zh: "孩子，儿童", type: "n.", emoji: "👶", sentence: "Children put a stocking on the beds." },
+            { id: 23, en: "message", zh: "信息，消息", type: "n.", emoji: "📝", sentence: "Then, write your message." },
+            { id: 24, en: "Merry Christmas!", zh: "圣诞快乐!", type: "phrase", emoji: "🎉", sentence: "Merry Christmas!" },
+            { id: 25, en: "song", zh: "歌曲", type: "n.", emoji: "🎵", sentence: "They sing Christmas songs." },
+            { id: 26, en: "What's wrong with...?", zh: "……怎么了？", type: "phrase", emoji: "❓", sentence: "What's wrong with him?" },
+            { id: 27, en: "him", zh: "他(宾格)", type: "pron.", emoji: "👦", sentence: "What's wrong with him?" },
+            { id: 28, en: "us", zh: "我们(宾格)", type: "pron.", emoji: "👥", sentence: "People eat us on Christmas Day!" },
+            { id: 29, en: "letter", zh: "信", type: "n.", emoji: "✉️", sentence: "I sometimes write him a letter." },
+            { id: 30, en: "storybook", zh: "故事书", type: "n.", emoji: "📖", sentence: "I read a storybook after dinner." },
+            { id: 31, en: "after", zh: "在……以后", type: "prep.", emoji: "🕒", sentence: "I read a storybook after dinner." }
+        ];
+
+        function App() {
+            const [score, setScore] = useState(0);
+            const [currentIndex, setCurrentIndex] = useState(0);
+            const [isFlipped, setIsFlipped] = useState(false);
+            const [learnedCount, setLearnedCount] = useState(0);
+            const [isCompleted, setIsCompleted] = useState(false);
+            const [isTransitioning, setIsTransitioning] = useState(false);
+            
+            // 语音相关
+            const [voices, setVoices] = useState([]);
+            const [preferredVoice, setPreferredVoice] = useState(null);
+
+            const card = VOCABULARY[currentIndex] || VOCABULARY[0];
+            const isLastCard = currentIndex === VOCABULARY.length - 1;
+
+            // 初始化加载语音
+            useEffect(() => {
+                const loadVoices = () => {
+                    const availableVoices = window.speechSynthesis.getVoices();
+                    setVoices(availableVoices);
+                    // 优先选择高质量发音
+                    const bestVoice = availableVoices.find(v => v.name.includes("Google US English")) ||
+                                      availableVoices.find(v => v.name.includes("Microsoft Zira")) ||
+                                      availableVoices.find(v => v.name.includes("Samantha")) ||
+                                      availableVoices.find(v => v.lang === 'en-US');
+                    setPreferredVoice(bestVoice);
+                };
+                loadVoices();
+                if (window.speechSynthesis.onvoiceschanged !== undefined) {
+                    window.speechSynthesis.onvoiceschanged = loadVoices;
+                }
+            }, []);
+
+            // 播放功能
+            const speak = (text) => {
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    if (preferredVoice) utterance.voice = preferredVoice;
+                    else utterance.lang = 'en-US';
+                    utterance.rate = 0.9; 
+                    utterance.pitch = 1.0; 
+                    window.speechSynthesis.speak(utterance);
+                }
+            };
+
+            const handleCardClick = () => {
+                if (isTransitioning) return;
+                // 正面翻背面时播放
+                if (!isFlipped) {
+                    speak(card.en);
+                }
+                setIsFlipped(!isFlipped);
+            };
+
+            const nextCard = () => {
+                if (isTransitioning) return;
+                setIsTransitioning(true);
+                setIsFlipped(false);
+                setTimeout(() => {
+                    if (currentIndex >= VOCABULARY.length - 1) {
+                        setIsCompleted(true);
+                    } else {
+                        setCurrentIndex(prev => prev + 1);
+                    }
+                    setIsTransitioning(false);
+                }, 300);
+            };
+
+            const markLearned = () => {
+                if (isTransitioning) return;
+                setScore(s => s + 10);
+                setLearnedCount(c => c + 1);
+                nextCard();
+            };
+
+            const restartGame = () => {
+                setIsCompleted(false);
+                setCurrentIndex(0);
+                setScore(0);
+                setLearnedCount(0);
+                setIsFlipped(false);
+                setIsTransitioning(false);
+            };
+
+            // 结算页面
+            if (isCompleted) {
+                return (
+                    <div className="min-h-screen bg-red-50 font-sans text-gray-800 flex flex-col items-center justify-center p-4 relative z-10">
+                        <div className="bg-white rounded-3xl shadow-xl p-8 max-w-md w-full text-center animate-fade-in border-4 border-red-200">
+                            <Icons.Gift className="w-24 h-24 text-red-500 mx-auto mb-6 animate-bounce" />
+                            <h2 className="text-3xl font-bold text-red-700 mb-2">Merry Christmas!</h2>
+                            <p className="text-gray-500 mb-8">Unit 8 挑战完成</p>
+                            
+                            <div className="bg-green-50 rounded-xl p-6 mb-8 border border-green-100">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="text-center border-r border-green-200">
+                                        <p className="text-sm text-gray-500 mb-1">总得分 XP</p>
+                                        <p className="text-3xl font-bold text-green-600">{score}</p>
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="text-sm text-gray-500 mb-1">掌握单词</p>
+                                        <p className="text-3xl font-bold text-red-500">{learnedCount} <span className="text-sm text-gray-400">/ {VOCABULARY.length}</span></p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button 
+                                onClick={restartGame}
+                                className="w-full py-4 rounded-2xl bg-red-600 text-white font-bold text-lg shadow-lg hover:bg-red-700 hover:shadow-xl transition flex items-center justify-center space-x-2"
+                            >
+                                <Icons.RotateCcw className="w-6 h-6" />
+                                <span>再玩一次</span>
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            // 主页面
+            return (
+                <div className="min-h-screen font-sans text-gray-800 flex flex-col items-center relative z-10">
+                    
+                    {/* Header */}
+                    <header className="w-full bg-red-600 text-white p-4 shadow-md flex justify-between items-center sticky top-0 z-20">
+                        <div className="flex items-center space-x-2">
+                            <Icons.Tree className="w-6 h-6 text-green-300" />
+                            <h1 className="text-lg font-bold">Unit 8 At Christmas</h1>
+                        </div>
+                        <div className="flex items-center space-x-4">
+                            <div className="text-sm opacity-90 hidden sm:block">
+                                {currentIndex + 1} / {VOCABULARY.length}
+                            </div>
+                            <div className="bg-red-800 px-3 py-1 rounded-full flex items-center space-x-1 border border-red-700">
+                                <Icons.Star className="w-4 h-4 text-yellow-400 fill-current" />
+                                <span className="font-bold">{score}</span>
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="flex-1 w-full max-w-md p-6 flex flex-col items-center justify-center animate-fade-in">
+                        
+                        {/* 进度条 */}
+                        <div className="w-full bg-gray-200 h-2 rounded-full mb-8 overflow-hidden">
+                            <div 
+                                className="bg-green-500 h-2 rounded-full transition-all duration-500"
+                                style={{ width: `${((currentIndex) / VOCABULARY.length) * 100}%` }}
+                            ></div>
+                        </div>
+
+                        {/* 卡片容器 */}
+                        <div 
+                            className={`relative w-full aspect-[3/4] max-h-[500px] perspective-1000 select-none ${isTransitioning ? 'cursor-wait' : 'cursor-pointer group'}`}
+                            onClick={handleCardClick}
+                        >
+                            <div className={`relative w-full h-full duration-500 transform-style-3d transition-transform ${isFlipped ? 'my-rotate-y-180' : ''}`}>
+                                
+                                {/* 正面 (Front): 中文 + Emoji */}
+                                <div className="absolute w-full h-full bg-white rounded-3xl shadow-xl border-4 border-red-100 flex flex-col items-center justify-center backface-hidden p-6 text-center z-10">
+                                    <span className="text-8xl mb-6 animate-bounce-slow filter drop-shadow-md">{card.emoji}</span>
+                                    <h3 className="text-5xl font-bold text-gray-800 tracking-wider mb-2">{card.zh}</h3>
+                                    {/* 词性显示 */}
+                                    <p className="text-gray-400 text-sm font-medium mb-6 italic">{card.type}</p>
+                                    <p className="text-red-400 mt-2 text-sm font-medium bg-red-50 px-4 py-2 rounded-full border border-red-100">
+                                        点击查看英文
+                                    </p>
+                                </div>
+
+                                {/* 背面 (Back): 英文 + 例句 */}
+                                <div className="absolute w-full h-full bg-red-600 text-white rounded-3xl shadow-xl flex flex-col items-center justify-center backface-hidden my-rotate-y-180 p-6 text-center border-4 border-green-400 relative">
+                                    {/* 播放按钮 */}
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); speak(card.en); }}
+                                        className="absolute top-4 right-4 p-3 bg-white/20 hover:bg-white/30 rounded-full transition backdrop-blur-sm z-20"
+                                    >
+                                        <Icons.Volume2 className="w-6 h-6 text-white" />
+                                    </button>
+
+                                    <h3 className="text-4xl font-bold mb-6 text-yellow-300 tracking-tight break-words w-full">{card.en}</h3>
+                                    <div className="w-16 h-1 bg-white/30 rounded-full mb-8"></div>
+                                    <div className="bg-red-700/50 p-6 rounded-xl w-full border border-red-500">
+                                        <p className="text-lg leading-relaxed font-medium">"{card.sentence}"</p>
+                                    </div>
+                                    <p className="mt-8 text-red-200 text-sm">再点一下翻回去</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 按钮区 */}
+                        <div className="flex items-center justify-between w-full mt-10 space-x-4">
+                            <button 
+                                onClick={nextCard}
+                                disabled={isTransitioning}
+                                className={`flex-1 py-4 rounded-2xl bg-white text-gray-600 font-bold border-2 border-gray-100 transition flex items-center justify-center space-x-2 ${isTransitioning ? 'opacity-50' : 'hover:bg-gray-50 hover:border-gray-300'}`}
+                            >
+                                <Icons.RotateCcw className="w-5 h-5" />
+                                <span>{isLastCard ? "结束" : "跳过"}</span>
+                            </button>
+                            
+                            <button 
+                                onClick={markLearned}
+                                disabled={isTransitioning}
+                                className={`flex-[2] py-4 rounded-2xl bg-green-500 text-white font-bold shadow-lg transition-all flex items-center justify-center space-x-2 ${isTransitioning ? 'opacity-50' : 'hover:bg-green-600 hover:shadow-xl hover:-translate-y-1'}`}
+                            >
+                                <Icons.Check className="w-6 h-6" />
+                                <span>{isLastCard ? "完成 (+10)" : "我记住了"}</span>
+                            </button>
+                        </div>
+                    </main>
+
+                    <footer className="p-4 text-center text-red-300 text-xs">
+                        Grade 5 English • Unit 8 At Christmas
+                    </footer>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
