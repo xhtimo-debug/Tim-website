@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>云朵字生成器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Zcool+KuaiLe&family=Pacifico&family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@400;700&family=Nunito:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body {
+            font-family: 'Fredoka One', 'Zcool KuaiLe', 'Noto Sans SC', sans-serif;
+            background-color: #f3f4f6;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .draggable-item {
+            position: absolute;
+            cursor: grab;
+            user-select: none;
+            border: 2px dashed transparent; 
+            padding: 0;
+            /* 关键：transform-origin 设为中心，旋转更自然 */
+            transform-origin: center center;
+        }
+        .draggable-item:active { cursor: grabbing; }
+        
+        /* 选中状态 */
+        .draggable-item.active {
+            border-color: #3b82f6;
+            /* 选中时不强制 z-index，依靠图层管理，或者仅临时提层 */
+        }
+
+        /* 缩放控制点 (右下角) */
+        .resize-handle {
+            position: absolute;
+            bottom: -8px; right: -8px;
+            width: 14px; height: 14px;
+            background: white;
+            border: 3px solid #3b82f6;
+            border-radius: 50%;
+            cursor: se-resize;
+            display: none;
+            z-index: 1002;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        /* 旋转控制点 (顶部) */
+        .rotate-handle {
+            position: absolute;
+            top: -30px; left: 50%;
+            width: 14px; height: 14px;
+            background: #10b981; /* 绿色区分 */
+            border: 2px solid white;
+            border-radius: 50%;
+            cursor: grab;
+            display: none;
+            z-index: 1002;
+            transform: translateX(-50%);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        /* 连接线 */
+        .rotate-handle::after {
+            content: '';
+            position: absolute;
+            top: 12px; left: 50%;
+            width: 2px; height: 18px;
+            background: #3b82f6;
+            transform: translateX(-50%);
+            pointer-events: none;
+        }
+
+        .draggable-item.active .resize-handle,
+        .draggable-item.active .rotate-handle { display: block; }
+
+        /* UI 组件样式 */
+        .category-btn { transition: all 0.2s; opacity: 0.6; }
+        .category-btn:hover { opacity: 1; background-color: #f3f4f6; }
+        .category-btn.active {
+            opacity: 1;
+            background-color: #eff6ff;
+            color: #3b82f6;
+            font-weight: bold;
+            border-bottom: 2px solid #3b82f6;
+        }
+
+        .palette-btn {
+            position: relative;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border: 2px solid #fff;
+        }
+        .palette-btn:hover { transform: scale(1.1); z-index: 10; }
+        .palette-ring-outer { position: absolute; inset: 0; border-radius: 50%; }
+        .palette-ring-mid { position: absolute; inset: 6px; border-radius: 50%; }
+        .palette-ring-inner { position: absolute; inset: 12px; border-radius: 50%; }
+
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+        
+        input[type="color"] {
+            -webkit-appearance: none;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            width: 100%; height: 36px;
+            padding: 2px; cursor: pointer; background: white;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; }
+        input[type="range"] { accent-color: #3b82f6; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        
+        .layer-btn {
+            @apply p-2 rounded hover:bg-gray-100 text-gray-500 hover:text-blue-500 transition-colors;
+        }
+    </style>
+</head>
+<body class="flex h-screen w-screen text-gray-700 bg-gray-100">
+
+    <!-- 左侧：素材库 -->
+    <aside class="w-80 bg-white border-r border-gray-200 flex flex-col h-full z-20 flex-shrink-0 shadow-sm select-none">
+        <div class="p-4 border-b border-gray-100 flex items-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-sm">
+            <i class="fa-solid fa-cloud text-xl"></i>
+            <h1 class="text-lg font-bold tracking-wider">云朵字生成器</h1>
+        </div>
+
+        <div class="p-3 grid grid-cols-2 gap-2 border-b border-gray-100 bg-gray-50">
+            <button onclick="addCloudText()" class="flex items-center justify-center gap-2 p-3 bg-white hover:bg-blue-50 text-blue-600 rounded-lg transition-all border border-gray-200 shadow-sm hover:shadow active:scale-95">
+                <i class="fa-solid fa-font"></i> <span class="text-sm font-bold">加文字</span>
+            </button>
+            <label class="flex items-center justify-center gap-2 p-3 bg-white hover:bg-purple-50 text-purple-600 rounded-lg transition-all border border-gray-200 shadow-sm hover:shadow cursor-pointer active:scale-95">
+                <i class="fa-solid fa-image"></i> <span class="text-sm font-bold">上传图</span>
+                <input type="file" accept="image/*" onchange="handleImageUpload(event)" class="hidden">
+            </label>
+        </div>
+
+        <div class="flex overflow-x-auto border-b border-gray-200 bg-white hide-scrollbar">
+            <button onclick="switchCategory('face')" class="category-btn active px-3 py-3 text-xs whitespace-nowrap" id="tab-face">😊 表情</button>
+            <button onclick="switchCategory('nature')" class="category-btn px-3 py-3 text-xs whitespace-nowrap" id="tab-nature">🌻 自然</button>
+            <button onclick="switchCategory('food')" class="category-btn px-3 py-3 text-xs whitespace-nowrap" id="tab-food">🍔 美食</button>
+            <button onclick="switchCategory('activity')" class="category-btn px-3 py-3 text-xs whitespace-nowrap" id="tab-activity">⚽ 活动</button>
+            <button onclick="switchCategory('travel')" class="category-btn px-3 py-3 text-xs whitespace-nowrap" id="tab-travel">🚀 旅行</button>
+            <button onclick="switchCategory('objects')" class="category-btn px-3 py-3 text-xs whitespace-nowrap" id="tab-objects">💡 物体</button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-2 bg-gray-50">
+            <div id="sticker-grid" class="grid grid-cols-5 gap-2 content-start"></div>
+            <div class="h-10"></div>
+        </div>
+    </aside>
+
+    <!-- 中间：画布区域 -->
+    <main class="flex-1 relative bg-gray-200 flex flex-col items-center justify-center overflow-hidden" id="main-area">
+        
+        <!-- 悬浮工具栏 -->
+        <div class="absolute top-4 z-30 bg-white/90 backdrop-blur rounded-full shadow-lg px-6 py-2 flex items-center gap-5 text-sm text-gray-600 border border-white/50 select-none">
+            <div class="flex items-center gap-2 relative cursor-pointer group">
+                <div class="w-6 h-6 rounded-full border border-gray-300 shadow-inner overflow-hidden pointer-events-none">
+                     <div id="bg-color-preview" class="w-full h-full bg-white"></div>
+                </div>
+                <span class="text-xs font-bold group-hover:text-blue-500 transition-colors pointer-events-none">背景色</span>
+                <input type="color" id="bg-color-picker" value="#ffffff" 
+                       class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                       oninput="changeCanvasBg(this.value)" onchange="changeCanvasBg(this.value)">
+            </div>
+
+            <div class="w-px h-4 bg-gray-300"></div>
+            <button onclick="autoFitWindow()" class="hover:text-blue-500 transition-colors flex items-center gap-1">
+                <i class="fa-solid fa-expand text-xs"></i> <span class="text-xs font-bold">自适应</span>
+            </button>
+            <div class="w-px h-4 bg-gray-300"></div>
+            <label class="flex items-center gap-2 cursor-pointer select-none hover:text-blue-500 transition-colors">
+                <input type="checkbox" id="show-grid" checked onchange="toggleGrid(this.checked)" class="accent-blue-500 rounded w-3 h-3">
+                <span class="text-xs font-bold">网格</span>
+            </label>
+        </div>
+
+        <!-- 画布外层 -->
+        <div class="relative p-10 transition-all duration-300">
+            <div id="canvas-container" class="relative bg-white shadow-2xl overflow-hidden transition-all duration-300" style="width: 800px; height: 600px;">
+                <!-- 网格层 -->
+                <div id="grid-layer" class="absolute inset-0 pointer-events-none opacity-20" 
+                     style="background-image: linear-gradient(#9ca3af 1px, transparent 1px), linear-gradient(90deg, #9ca3af 1px, transparent 1px); background-size: 20px 20px;">
+                </div>
+                <!-- 元素层 -->
+                <div id="canvas-area" class="w-full h-full relative"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 右侧：属性面板 -->
+    <aside class="w-72 bg-white border-l border-gray-200 flex flex-col h-full z-20 flex-shrink-0 shadow-sm select-none transition-transform duration-300" id="right-panel">
+        <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+            <h2 class="font-bold text-gray-700 text-sm" id="prop-title">全局设置</h2>
+            <!-- 图层控制组 (选中时显示) -->
+            <div id="layer-controls" class="flex gap-1 hidden">
+                <button onclick="changeLayer('up')" class="layer-btn" title="上移一层"><i class="fa-solid fa-angle-up"></i></button>
+                <button onclick="changeLayer('down')" class="layer-btn" title="下移一层"><i class="fa-solid fa-angle-down"></i></button>
+                <button onclick="deleteActiveItem()" class="layer-btn text-red-500 hover:text-red-600 hover:bg-red-50" title="删除"><i class="fa-solid fa-trash-can"></i></button>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-4 space-y-6">
+            <!-- 全局面板 -->
+            <div id="panel-global" class="space-y-6">
+                <div class="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-100 text-center">
+                    <h3 class="text-sm font-bold text-blue-800 mb-1">保存 4K 作品</h3>
+                    <p class="text-[10px] text-blue-400 mb-3">超高清渲染 • 印刷级画质</p>
+                    <label class="flex items-center justify-center gap-2 text-xs text-gray-600 mb-3 cursor-pointer bg-white/50 p-2 rounded-lg hover:bg-white transition-colors">
+                        <input type="checkbox" id="export-transparent" class="accent-blue-500 w-3 h-3"> <span>透明背景 PNG</span>
+                    </label>
+                    <button onclick="exportCanvas()" class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-md shadow-blue-200 transition-all active:scale-95 flex items-center justify-center gap-2 text-sm">
+                        <i class="fa-solid fa-download"></i> 导出图片
+                    </button>
+                </div>
+                <div>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase mb-2 ml-1">画布尺寸</h3>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="resizeCanvas(800, 600)" class="py-2 border rounded hover:border-blue-300 text-xs bg-white text-gray-600">4:3</button>
+                        <button onclick="resizeCanvas(800, 800)" class="py-2 border rounded hover:border-blue-300 text-xs bg-white text-gray-600">1:1</button>
+                        <button onclick="resizeCanvas(600, 1067)" class="py-2 border rounded hover:border-blue-300 text-xs bg-white text-gray-600">手机</button>
+                        <button onclick="resizeCanvas(1200, 675)" class="py-2 border rounded hover:border-blue-300 text-xs bg-white text-gray-600">宽屏</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 通用属性（旋转、透明度、图层） -->
+            <div id="panel-common" class="hidden space-y-4 border-b border-gray-100 pb-4 mb-4">
+                <!-- 旋转 -->
+                <div class="space-y-1">
+                    <div class="flex justify-between items-center mb-1">
+                       <label class="text-xs font-bold text-gray-500">📐 旋转角度</label>
+                       <span id="val-rotation" class="text-xs font-mono text-blue-500">0°</span>
+                   </div>
+                   <input type="range" id="inp-rotation" min="-180" max="180" class="w-full h-1 bg-gray-200 rounded-lg cursor-pointer">
+               </div>
+               
+               <!-- 透明度 -->
+               <div class="space-y-1">
+                    <div class="flex justify-between items-center mb-1">
+                       <label class="text-xs font-bold text-gray-500">👻 透明度</label>
+                       <span id="val-opacity" class="text-xs font-mono text-blue-500">100%</span>
+                   </div>
+                   <input type="range" id="inp-opacity" min="0" max="100" class="w-full h-1 bg-gray-200 rounded-lg cursor-pointer">
+               </div>
+
+               <!-- 图层详细操作 -->
+               <div class="flex gap-2">
+                   <button onclick="changeLayer('top')" class="flex-1 py-1 text-xs border rounded hover:bg-gray-50">置顶</button>
+                   <button onclick="changeLayer('bottom')" class="flex-1 py-1 text-xs border rounded hover:bg-gray-50">置底</button>
+               </div>
+            </div>
+
+            <!-- 文字面板 -->
+            <div id="panel-text" class="space-y-4 hidden">
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-gray-400 uppercase">内容</label>
+                    <textarea id="inp-text" rows="2" class="w-full border border-gray-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-100 outline-none resize-none"></textarea>
+                </div>
+
+                <div>
+                    <label class="text-xs font-bold text-gray-400 uppercase mb-2 block">一键配色 (云朵纯白)</label>
+                    <div class="flex flex-wrap gap-2" id="palette-container"></div>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-gray-400 uppercase">字体</label>
+                    <select id="inp-font" class="w-full border border-gray-200 rounded-lg p-2 text-sm bg-white outline-none cursor-pointer">
+                        <option value="'Fredoka One', cursive">Fredoka One (默认)</option>
+                        <option value="'Zcool KuaiLe', cursive">站酷快乐体</option>
+                        <option value="'Pacifico', cursive">Pacifico</option>
+                        <option value="'Ma Shan Zheng', cursive">马善政</option>
+                        <option value="'Nunito', sans-serif">Nunito Round</option>
+                        <option value="'Noto Sans SC', sans-serif">思源黑体</option>
+                    </select>
+                </div>
+
+                <div class="space-y-1">
+                     <div class="flex justify-between items-center mb-1">
+                        <label class="text-xs font-bold text-gray-500">字号大小</label>
+                        <span id="val-font-size" class="text-xs font-mono text-blue-500">100</span>
+                    </div>
+                    <input type="range" id="inp-font-size" min="20" max="300" class="w-full h-1 bg-gray-200 rounded-lg cursor-pointer">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-1">
+                        <label class="text-xs font-bold text-gray-400 uppercase">文字色</label>
+                        <input type="color" id="inp-fill-color">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-xs font-bold text-gray-400 uppercase">云朵色</label>
+                        <input type="color" id="inp-stroke-color">
+                    </div>
+                </div>
+                <div class="space-y-1 bg-gray-50 p-3 rounded-lg border border-gray-100">
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-xs font-bold text-gray-500">☁️ 云朵厚度</label>
+                        <span id="val-stroke" class="text-xs font-mono text-blue-500 bg-blue-50 px-1 rounded">35</span>
+                    </div>
+                    <input type="range" id="inp-stroke-width" min="10" max="100" class="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                </div>
+                <div class="space-y-3 pt-2">
+                    <label class="flex items-center justify-between cursor-pointer group">
+                        <span class="text-xs font-bold text-gray-600 group-hover:text-blue-500 transition-colors">外轮廓描边</span>
+                        <input type="checkbox" id="check-outer" class="accent-blue-500 w-4 h-4">
+                    </label>
+                    <div id="group-outer" class="pl-3 border-l-2 border-gray-200 transition-all">
+                        <input type="color" id="inp-outer-color">
+                    </div>
+                    <label class="flex items-center justify-between cursor-pointer group">
+                        <span class="text-xs font-bold text-gray-600 group-hover:text-blue-500 transition-colors">立体投影</span>
+                        <input type="checkbox" id="check-shadow" class="accent-blue-500 w-4 h-4">
+                    </label>
+                </div>
+            </div>
+            
+            <!-- Emoji 专属面板 -->
+            <div id="panel-sticker" class="space-y-4 hidden">
+                 <div class="space-y-1 bg-blue-50 p-3 rounded-lg border border-blue-100 text-center">
+                    <span class="text-xs text-blue-600 font-bold">✨ 原生 Emoji 贴纸</span>
+                 </div>
+
+                 <div class="space-y-1">
+                     <div class="flex justify-between items-center mb-1">
+                        <label class="text-xs font-bold text-gray-500">贴纸大小</label>
+                        <span id="val-sticker-size" class="text-xs font-mono text-blue-500">150</span>
+                    </div>
+                    <input type="range" id="inp-sticker-size" min="50" max="400" class="w-full h-1 bg-gray-200 rounded-lg cursor-pointer">
+                </div>
+                
+                <div class="space-y-3 pt-2">
+                    <label class="flex items-center justify-between cursor-pointer group">
+                        <span class="text-xs font-bold text-gray-600 group-hover:text-blue-500 transition-colors">立体投影</span>
+                        <input type="checkbox" id="check-sticker-shadow" class="accent-blue-500 w-4 h-4">
+                    </label>
+                </div>
+            </div>
+
+            <!-- 图片面板 -->
+            <div id="panel-image" class="space-y-4 hidden">
+                <div class="bg-gray-100 p-2 rounded-lg flex justify-center border border-gray-200 border-dashed">
+                    <img id="preview-img" src="" class="h-24 object-contain drop-shadow-sm">
+                </div>
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-gray-400 uppercase">描边颜色</label>
+                    <input type="color" id="inp-img-border-color">
+                </div>
+                <div class="space-y-1">
+                     <div class="flex justify-between items-center mb-1">
+                        <label class="text-xs font-bold text-gray-500">描边粗细</label>
+                        <span id="val-img-border" class="text-xs font-mono text-blue-500">0</span>
+                    </div>
+                    <input type="range" id="inp-img-border-width" min="0" max="40" class="w-full h-1 bg-gray-200 rounded-lg cursor-pointer">
+                </div>
+                <div class="space-y-1">
+                     <div class="flex justify-between items-center mb-1">
+                        <label class="text-xs font-bold text-gray-500">圆角程度</label>
+                        <span id="val-img-radius" class="text-xs font-mono text-blue-500">0</span>
+                    </div>
+                    <input type="range" id="inp-img-radius" min="0" max="50" class="w-full h-1 bg-gray-200 rounded-lg cursor-pointer">
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <script>
+        const palettes = [
+            { name: 'Peach', fill: '#ffecd2', stroke: '#ffffff', outer: '#ff9a9e' },
+            { name: 'Sky', fill: '#e0c3fc', stroke: '#ffffff', outer: '#60a5fa' },
+            { name: 'Mint', fill: '#d4fc79', stroke: '#ffffff', outer: '#4ade80' },
+            { name: 'Lemon', fill: '#f6d365', stroke: '#ffffff', outer: '#fb923c' },
+            { name: 'Candy', fill: '#ff9a9e', stroke: '#ffffff', outer: '#f472b6' },
+            { name: 'Oreo', fill: '#374151', stroke: '#ffffff', outer: '#000000' },
+        ];
+
+        const stickers = {
+            face: ['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','☺️','😚','😙','😋','😛','😜','🤪','😝','🤑','🤗','🤭','🤫','🤔','🤐','🤨','😐','😑','😶','😏','😒','🙄','😬','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤮','🤧','🥵','🥶','🥴','😵','🤯','🤠','🥳','😎','🤓','🧐','😕'],
+            nature: ['🌸','💐','🌷','🌹','🥀','🌺','🍒','🍓','🍏','🍎','🥭','🥥','🥝','🥑','🍆','🥔','🥕','🌽','🌶️','🥒','🥬','🥦','🧄','🧅','🍄','🥜','🌰','🍞','🥐','🥖','🥨','🥯','🥞','🧇','🧀','🍖','🍗','🥩','🥓','🍔','🍟','🍕'],
+            food: ['🍪','🎂','🍰','🧁','🥧','🍫','🍬','🍭','🍮','🍯','🍼','🥛','☕','🍵','🍶','🍾','🍷','🍸','🍹','🍺','🍻','🥂','🥃','🥤','🧃','🧉','🧊','🥢','🍽️','🍴','🥄','🔪','🏺'],
+            activity: ['⚽','🏀','🏈','⚾','🥎','🎾','🏐','🏉','🥏','🎱','🪀','🏓','🏸','🏒','🏑','🥍','🏏','🥅','⛳','🪁','🏹','🎣','🤿','🥊','🥋','🎽','🛹','🛷','⛸️','🥌','🎿','⛷️','🏂','🪂','🏋️','🤼','🤸','⛹️','🤺','🤾','🏌️','🏇'],
+            travel: ['🚗','🚕','🚙','🚌','🚎','🏎️','🚓','🚑','🚒','🚐','🚚','🚛','🚜','🏍️','🛵','🦽','🦼','🛺','🚲','🛴','🛹','🚏','🛣️','🛤️','🛢️','⛽','🚨','🚥','🚦','🛑','🚧','⚓','⛵','🛶','🚤','🛳️','⛴️','🛥️','🚢','✈️','🛩️','🛫'],
+            objects: ['⌚','📱','📲','💻','⌨️','🖥️','🖨️','🖱️','🖲️','🕹️','🗜️','💽','💾','💿','📀','📼','📷','📸','📹','🎥','📽️','🎞️','📞','☎️','📟','📠','📺','📻','🎙️','🎚️','🎛️','🧭','⏱️','⏲️','⏰','🕰️','⌛','⏳','📡','🔋','🔌','💡']
+        };
+
+        let items = [];
+        let activeId = null;
+        let zIndexCounter = 100;
+        let draggedItem = null;
+        let isRotating = false;
+        let isResizing = false;
+        let dragStart = {};
+        let isAutoFit = true; // State to track if we should auto-resize
+
+        function autoFitWindow() {
+            // Force auto fit if invoked manually or on initial load
+            const main = document.getElementById('main-area');
+            // p-10 = 2.5rem ~= 40px. 2 sides = 80px.
+            // Subtracting a bit more to be safe and aesthetic
+            const w = main.clientWidth - 80; 
+            const h = main.clientHeight - 100; // Top bar space
+            resizeCanvas(Math.max(300, w), Math.max(300, h));
+            isAutoFit = true;
+        }
+
+        window.addEventListener('resize', () => {
+             if (isAutoFit) {
+                 requestAnimationFrame(autoFitWindow);
+             }
+        });
+
+        window.onload = () => {
+            loadStickers('face');
+            initPalettes();
+            setTimeout(() => {
+                addCloudText();
+                autoFitWindow(); // Initial fit
+            }, 100); 
+        };
+
+        function initPalettes() {
+            const container = document.getElementById('palette-container');
+            palettes.forEach(p => {
+                const btn = document.createElement('div');
+                btn.className = 'palette-btn';
+                btn.title = p.name;
+                btn.innerHTML = `
+                    <div class="palette-ring-outer" style="background-color: ${p.outer}"></div>
+                    <div class="palette-ring-mid" style="background-color: ${p.stroke}"></div>
+                    <div class="palette-ring-inner" style="background-color: ${p.fill}"></div>
+                `;
+                btn.onclick = () => applyPalette(p);
+                container.appendChild(btn);
+            });
+        }
+
+        function applyPalette(p) {
+            if(!activeId) return;
+            const item = items.find(i => i.id === activeId);
+            if(item.type !== 'text') return;
+
+            item.fillColor = p.fill;
+            item.strokeColor = p.stroke;
+            item.outerColor = p.outer;
+            item.hasOuter = true;
+            
+            document.getElementById('inp-fill-color').value = p.fill;
+            document.getElementById('inp-stroke-color').value = p.stroke;
+            document.getElementById('inp-outer-color').value = p.outer;
+            document.getElementById('check-outer').checked = true;
+            document.getElementById('group-outer').style.display = 'block';
+
+            updateItemDOM(item);
+        }
+
+        function switchCategory(cat) {
+            document.querySelectorAll('.category-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`tab-${cat}`).classList.add('active');
+            loadStickers(cat);
+        }
+
+        function loadStickers(cat) {
+            const grid = document.getElementById('sticker-grid');
+            grid.innerHTML = '';
+            const fragment = document.createDocumentFragment();
+            stickers[cat].forEach(emoji => {
+                const btn = document.createElement('button');
+                btn.className = "text-2xl hover:bg-white hover:scale-125 transition-all p-2 rounded-lg cursor-pointer flex items-center justify-center h-10 w-10";
+                btn.textContent = emoji;
+                btn.onclick = () => addSticker(emoji);
+                fragment.appendChild(btn);
+            });
+            grid.appendChild(fragment);
+        }
+
+        function addCloudText() {
+            const id = 'item-' + Date.now();
+            const item = {
+                id, type: 'text',
+                x: 100, y: 100, scale: 1, rotation: 0, opacity: 100,
+                text: 'Tim',
+                fontFamily: "'Fredoka One', cursive", // 默认字体
+                fontSize: 80, // Modified
+                fillColor: '#3b82f6',
+                strokeColor: '#ffffff',
+                strokeWidth: 20, // Modified
+                hasOuter: true,
+                outerColor: '#93c5fd',
+                hasShadow: false // Changed from true to false
+            };
+            items.push(item);
+            renderItem(item);
+            setActiveItem(id);
+        }
+
+        function addSticker(emoji) {
+            const id = 'item-' + Date.now();
+            const item = {
+                id, 
+                type: 'sticker', 
+                x: 200, y: 200, scale: 1, rotation: 0, opacity: 100,
+                text: emoji,
+                fontSize: 150,
+                strokeColor: 'transparent',
+                strokeWidth: 0,
+                hasShadow: false // Changed from true to false
+            };
+            items.push(item);
+            renderItem(item);
+            setActiveItem(id);
+        }
+
+        function handleImageUpload(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                const img = new Image();
+                img.onload = () => {
+                    let w = img.width, h = img.height;
+                    const max = 300;
+                    if(w > max || h > max) {
+                        const ratio = Math.min(max/w, max/h);
+                        w *= ratio; h *= ratio;
+                    }
+                    const id = 'item-' + Date.now();
+                    const item = {
+                        id, type: 'image',
+                        x: 100, y: 100, scale: 1, rotation: 0, opacity: 100,
+                        src: evt.target.result,
+                        width: w, height: h,
+                        borderColor: '#ffffff',
+                        borderWidth: 10,
+                        borderRadius: 15
+                    };
+                    items.push(item);
+                    renderItem(item);
+                    setActiveItem(id);
+                    e.target.value = '';
+                };
+                img.src = evt.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // --- 渲染系统 ---
+
+        function renderItem(item) {
+            const el = document.createElement('div');
+            el.id = item.id;
+            el.className = 'draggable-item';
+            // 初始位置设置
+            el.style.left = item.x + 'px';
+            el.style.top = item.y + 'px';
+            el.style.zIndex = zIndexCounter++;
+
+            // 内容 Canvas
+            const canvas = document.createElement('canvas');
+            canvas.className = 'item-content pointer-events-none block';
+            el.appendChild(canvas);
+
+            // 缩放手柄
+            const resizeHandle = document.createElement('div');
+            resizeHandle.className = 'resize-handle';
+            resizeHandle.addEventListener('mousedown', (e) => initResize(e, item));
+            el.appendChild(resizeHandle);
+
+            // 旋转手柄
+            const rotateHandle = document.createElement('div');
+            rotateHandle.className = 'rotate-handle';
+            rotateHandle.addEventListener('mousedown', (e) => initRotate(e, item));
+            el.appendChild(rotateHandle);
+
+            el.addEventListener('mousedown', (e) => initDrag(e, item));
+            document.getElementById('canvas-area').appendChild(el);
+            updateItemDOM(item);
+        }
+
+        function updateItemDOM(item) {
+            const el = document.getElementById(item.id);
+            if(!el) return;
+            const canvas = el.querySelector('canvas');
+            const ctx = canvas.getContext('2d');
+            const dpr = 4; // 4x
+
+            // 应用容器级变换 (位置由 left/top 控制，旋转和透明度由 transform/opacity 控制)
+            el.style.transform = `rotate(${item.rotation}deg)`;
+            el.style.opacity = item.opacity / 100;
+            
+            // 重要：更新容器尺寸，但不使用 scale 属性，而是重新绘制 Canvas
+            // scale 属性只用于计算绘制时的像素大小
+
+            if (item.type === 'text' || item.type === 'sticker') {
+                const isSticker = item.type === 'sticker';
+                const fontFamily = isSticker ? "sans-serif" : item.fontFamily;
+                const fontSize = item.fontSize || 100;
+                const fontStr = `bold ${fontSize}px ${fontFamily.replace(/'/g, '"')}`;
+                ctx.font = fontStr; 
+                
+                const metrics = ctx.measureText(item.text);
+                const textWidth = metrics.width;
+                const textHeight = fontSize * 1.2; 
+                
+                const strokeW = parseInt(item.strokeWidth);
+                const pad = strokeW + 40; 
+                const w = Math.ceil(textWidth + pad * 2);
+                const h = Math.ceil(textHeight + pad * 2);
+
+                canvas.width = w * dpr;
+                canvas.height = h * dpr;
+                ctx.scale(dpr, dpr);
+
+                ctx.font = fontStr; 
+                ctx.textBaseline = 'middle';
+                ctx.textAlign = 'center';
+                const cx = w / 2;
+                const cy = h / 2 + (fontSize * 0.05);
+
+                ctx.lineJoin = 'round';
+                ctx.lineCap = 'round';
+
+                if (isSticker) {
+                    // 原生 Emoji 贴纸渲染
+                    if (item.hasShadow) {
+                        ctx.shadowColor = 'rgba(0,0,0,0.2)';
+                        ctx.shadowBlur = 6;
+                        ctx.shadowOffsetX = 4;
+                        ctx.shadowOffsetY = 4;
+                    } else {
+                        ctx.shadowColor = 'transparent';
+                    }
+                    ctx.fillText(item.text, cx, cy);
+                } else {
+                    // 云朵文字渲染
+                    if (item.hasShadow) {
+                        ctx.shadowColor = 'rgba(0,0,0,0.2)';
+                        ctx.shadowBlur = 6;
+                        ctx.shadowOffsetX = 6;
+                        ctx.shadowOffsetY = 6;
+                    } else {
+                        ctx.shadowColor = 'transparent';
+                    }
+
+                    if (item.hasOuter) {
+                        ctx.lineWidth = strokeW + 16;
+                        ctx.strokeStyle = item.outerColor;
+                        ctx.strokeText(item.text, cx, cy);
+                        ctx.shadowColor = 'transparent'; 
+                    }
+
+                    if (!item.hasOuter) ctx.shadowColor = 'transparent';
+                    ctx.lineWidth = strokeW;
+                    ctx.strokeStyle = item.strokeColor;
+                    ctx.strokeText(item.text, cx, cy);
+                    ctx.fillStyle = item.strokeColor;
+                    ctx.fillText(item.text, cx, cy);
+                    ctx.fillStyle = item.fillColor;
+                    ctx.fillText(item.text, cx, cy);
+                }
+
+                // CSS 尺寸 (考虑缩放)
+                canvas.style.width = (w * item.scale) + 'px';
+                canvas.style.height = (h * item.scale) + 'px';
+                
+                // 容器尺寸
+                el.style.width = (w * item.scale) + 'px';
+                el.style.height = (h * item.scale) + 'px';
+
+            } else if (item.type === 'image') {
+                const w = item.width + (item.borderWidth * 2);
+                const h = item.height + (item.borderWidth * 2);
+                
+                canvas.width = w * dpr;
+                canvas.height = h * dpr;
+                ctx.scale(dpr, dpr);
+                
+                const imgObj = new Image();
+                imgObj.onload = () => {
+                    ctx.clearRect(0,0,w,h);
+                    
+                    const maxR = Math.min(item.width, item.height) / 2;
+                    const radiusPx = (item.borderRadius / 50) * maxR;
+                    const ox = item.borderWidth;
+                    const oy = item.borderWidth;
+                    const iw = item.width;
+                    const ih = item.height;
+
+                    ctx.beginPath();
+                    ctx.roundRect(ox, oy, iw, ih, radiusPx);
+                    
+                    if(item.borderWidth > 0) {
+                        ctx.shadowColor = 'rgba(0,0,0,0.1)';
+                        ctx.shadowBlur = 6;
+                        ctx.shadowOffsetY = 4;
+                    }
+                    
+                    ctx.save();
+                    ctx.clip();
+                    ctx.drawImage(imgObj, ox, oy, iw, ih);
+                    ctx.restore();
+
+                    if(item.borderWidth > 0) {
+                        ctx.shadowColor = 'transparent';
+                        ctx.lineWidth = item.borderWidth;
+                        ctx.strokeStyle = item.borderColor;
+                        ctx.stroke();
+                    }
+                };
+                imgObj.src = item.src;
+
+                canvas.style.width = (w * item.scale) + 'px';
+                canvas.style.height = (h * item.scale) + 'px';
+                
+                el.style.width = (w * item.scale) + 'px';
+                el.style.height = (h * item.scale) + 'px';
+            }
+        }
+
+        // --- 交互系统 (拖拽、旋转、缩放) ---
+        
+        // 通用点击处理
+        document.addEventListener('mousedown', (e) => {
+            const target = e.target;
+            const isItem = target.closest('.draggable-item');
+            const isPanel = target.closest('aside');
+            const isControl = target.closest('.absolute.top-4'); // Top bar
+
+            if (!isItem && !isPanel && !isControl && activeId) {
+                setActiveItem(null);
+            }
+        });
+
+        // 1. 拖拽逻辑 (优化版：基于 delta，无惧旋转)
+        function initDrag(e, item) {
+            if(e.target.className.includes('resize') || e.target.className.includes('rotate')) return;
+            
+            setActiveItem(item.id);
+            draggedItem = item;
+            
+            // 记录初始鼠标位置和初始元素位置
+            dragStart = {
+                mouseX: e.clientX,
+                mouseY: e.clientY,
+                itemX: item.x,
+                itemY: item.y
+            };
+        }
+
+        // 2. 旋转逻辑
+        function initRotate(e, item) {
+            e.stopPropagation();
+            isRotating = true;
+            draggedItem = item;
+            
+            const rect = document.getElementById(item.id).getBoundingClientRect();
+            dragStart = {
+                centerX: rect.left + rect.width / 2,
+                centerY: rect.top + rect.height / 2
+            };
+        }
+
+        // 3. 缩放逻辑
+        function initResize(e, item) {
+            e.stopPropagation();
+            e.preventDefault();
+            isResizing = true;
+            draggedItem = item;
+            
+            const el = document.getElementById(item.id);
+            const rect = el.getBoundingClientRect();
+            // 计算中心点
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            dragStart = {
+                centerX, centerY,
+                // 记录初始距离
+                startDist: Math.hypot(e.clientX - centerX, e.clientY - centerY),
+                startScale: item.scale
+            };
+        }
+
+        document.addEventListener('mousemove', (e) => {
+            if (!draggedItem) return;
+
+            if (isRotating) {
+                // 计算角度
+                const dx = e.clientX - dragStart.centerX;
+                const dy = e.clientY - dragStart.centerY;
+                // +90度是因为初始手柄在顶部(-90度方向)
+                let angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+                draggedItem.rotation = angle;
+                
+                // 更新 DOM 和 UI
+                const el = document.getElementById(draggedItem.id);
+                el.style.transform = `rotate(${angle}deg)`;
+                document.getElementById('val-rotation').innerText = Math.round(angle) + '°';
+                document.getElementById('inp-rotation').value = angle;
+
+            } else if (isResizing) {
+                // 几何中心缩放
+                const curDist = Math.hypot(e.clientX - dragStart.centerX, e.clientY - dragStart.centerY);
+                if(dragStart.startDist < 1) return;
+                
+                let newScale = dragStart.startScale * (curDist / dragStart.startDist);
+                newScale = Math.max(0.1, Math.min(newScale, 5.0)); 
+                
+                draggedItem.scale = newScale;
+                updateItemDOM(draggedItem);
+
+            } else {
+                // 拖拽
+                const dx = e.clientX - dragStart.mouseX;
+                const dy = e.clientY - dragStart.mouseY;
+                
+                const newX = dragStart.itemX + dx;
+                const newY = dragStart.itemY + dy;
+                
+                draggedItem.x = newX;
+                draggedItem.y = newY;
+                
+                const el = document.getElementById(draggedItem.id);
+                el.style.left = newX + 'px';
+                el.style.top = newY + 'px';
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            draggedItem = null;
+            isResizing = false;
+            isRotating = false;
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if((e.key === 'Delete' || e.key === 'Backspace') && activeId && document.activeElement.tagName !== 'TEXTAREA') {
+                deleteActiveItem();
+            }
+        });
+
+        // --- 属性面板 & 状态管理 ---
+        function setActiveItem(id) {
+            document.querySelectorAll('.draggable-item').forEach(el => el.classList.remove('active'));
+            activeId = id;
+
+            const globalPanel = document.getElementById('panel-global');
+            const commonPanel = document.getElementById('panel-common');
+            const textPanel = document.getElementById('panel-text');
+            const stickerPanel = document.getElementById('panel-sticker');
+            const imgPanel = document.getElementById('panel-image');
+            const title = document.getElementById('prop-title');
+            const layerControls = document.getElementById('layer-controls');
+
+            if (!id) {
+                globalPanel.classList.remove('hidden');
+                commonPanel.classList.add('hidden');
+                textPanel.classList.add('hidden');
+                stickerPanel.classList.add('hidden');
+                imgPanel.classList.add('hidden');
+                layerControls.classList.add('hidden');
+                title.innerText = '全局设置';
+                return;
+            }
+
+            const el = document.getElementById(id);
+            if(el) el.classList.add('active');
+            
+            const item = items.find(i => i.id === id);
+            globalPanel.classList.add('hidden');
+            commonPanel.classList.remove('hidden'); // 显示通用面板
+            layerControls.classList.remove('hidden');
+
+            // 同步通用属性
+            syncInput('inp-rotation', item.rotation);
+            document.getElementById('val-rotation').innerText = Math.round(item.rotation) + '°';
+            syncInput('inp-opacity', item.opacity);
+            document.getElementById('val-opacity').innerText = item.opacity + '%';
+
+            if (item.type === 'text') {
+                textPanel.classList.remove('hidden');
+                stickerPanel.classList.add('hidden');
+                imgPanel.classList.add('hidden');
+                title.innerText = '文字编辑';
+                
+                syncInput('inp-text', item.text);
+                syncInput('inp-font', item.fontFamily);
+                syncInput('inp-fill-color', item.fillColor);
+                syncInput('inp-stroke-color', item.strokeColor);
+                syncInput('inp-stroke-width', item.strokeWidth);
+                document.getElementById('val-stroke').innerText = item.strokeWidth;
+                syncInput('inp-font-size', item.fontSize || 100);
+                document.getElementById('val-font-size').innerText = item.fontSize || 100;
+                
+                document.getElementById('check-outer').checked = item.hasOuter;
+                document.getElementById('group-outer').style.display = item.hasOuter ? 'block' : 'none';
+                syncInput('inp-outer-color', item.outerColor);
+                document.getElementById('check-shadow').checked = item.hasShadow;
+
+            } else if (item.type === 'sticker') {
+                textPanel.classList.add('hidden');
+                stickerPanel.classList.remove('hidden');
+                imgPanel.classList.add('hidden');
+                title.innerText = '贴纸编辑';
+
+                syncInput('inp-sticker-size', item.fontSize);
+                document.getElementById('val-sticker-size').innerText = item.fontSize;
+                document.getElementById('check-sticker-shadow').checked = item.hasShadow;
+
+            } else if (item.type === 'image') {
+                textPanel.classList.add('hidden');
+                stickerPanel.classList.add('hidden');
+                imgPanel.classList.remove('hidden');
+                title.innerText = '图片编辑';
+                
+                document.getElementById('preview-img').src = item.src;
+                syncInput('inp-img-border-color', item.borderColor);
+                syncInput('inp-img-border-width', item.borderWidth);
+                document.getElementById('val-img-border').innerText = item.borderWidth;
+                syncInput('inp-img-radius', item.borderRadius);
+                document.getElementById('val-img-radius').innerText = item.borderRadius;
+            }
+        }
+
+        function syncInput(id, val) {
+            const el = document.getElementById(id);
+            if(el) el.value = val;
+        }
+
+        function updateActive(key, val) {
+            if(!activeId) return;
+            const item = items.find(i => i.id === activeId);
+            item[key] = val;
+            
+            // 特殊处理旋转和透明度，因为它们不重绘 Canvas
+            if (key === 'rotation') {
+                const el = document.getElementById(activeId);
+                el.style.transform = `rotate(${val}deg)`;
+                document.getElementById('val-rotation').innerText = Math.round(val) + '°';
+                return;
+            }
+            if (key === 'opacity') {
+                const el = document.getElementById(activeId);
+                el.style.opacity = val / 100;
+                document.getElementById('val-opacity').innerText = val + '%';
+                return;
+            }
+
+            updateItemDOM(item);
+        }
+
+        // --- 图层操作 ---
+        function changeLayer(action) {
+            if (!activeId) return;
+            const el = document.getElementById(activeId);
+            const currentZ = parseInt(el.style.zIndex);
+            
+            // 简单处理：只改 z-index，不重排 items 数组顺序
+            // 更好的做法是 items 排序后重新渲染 z-index，这里简化
+            if (action === 'top') el.style.zIndex = 9999;
+            if (action === 'bottom') el.style.zIndex = 1;
+            if (action === 'up') el.style.zIndex = currentZ + 1;
+            if (action === 'down') el.style.zIndex = Math.max(1, currentZ - 1);
+        }
+
+        // 事件绑定
+        document.getElementById('inp-rotation').addEventListener('input', e => updateActive('rotation', e.target.value));
+        document.getElementById('inp-opacity').addEventListener('input', e => updateActive('opacity', e.target.value));
+
+        document.getElementById('inp-text').addEventListener('input', e => updateActive('text', e.target.value));
+        document.getElementById('inp-font').addEventListener('change', e => {
+            updateActive('fontFamily', e.target.value);
+            updateItemDOM(items.find(i => i.id === activeId));
+        });
+        document.getElementById('inp-font-size').addEventListener('input', e => {
+            document.getElementById('val-font-size').innerText = e.target.value;
+            updateActive('fontSize', parseInt(e.target.value));
+        });
+        document.getElementById('inp-fill-color').addEventListener('input', e => updateActive('fillColor', e.target.value));
+        document.getElementById('inp-stroke-color').addEventListener('input', e => updateActive('strokeColor', e.target.value));
+        document.getElementById('inp-stroke-width').addEventListener('input', e => {
+            document.getElementById('val-stroke').innerText = e.target.value;
+            updateActive('strokeWidth', e.target.value);
+        });
+        document.getElementById('check-outer').addEventListener('change', e => {
+            const checked = e.target.checked;
+            document.getElementById('group-outer').style.display = checked ? 'block' : 'none';
+            updateActive('hasOuter', checked);
+        });
+        document.getElementById('inp-outer-color').addEventListener('input', e => updateActive('outerColor', e.target.value));
+        document.getElementById('check-shadow').addEventListener('change', e => updateActive('hasShadow', e.target.checked));
+
+        document.getElementById('inp-sticker-size').addEventListener('input', e => {
+            document.getElementById('val-sticker-size').innerText = e.target.value;
+            updateActive('fontSize', parseInt(e.target.value));
+        });
+        document.getElementById('check-sticker-shadow').addEventListener('change', e => updateActive('hasShadow', e.target.checked));
+
+        document.getElementById('inp-img-border-color').addEventListener('input', e => updateActive('borderColor', e.target.value));
+        document.getElementById('inp-img-border-width').addEventListener('input', e => {
+             document.getElementById('val-img-border').innerText = e.target.value;
+             updateActive('borderWidth', e.target.value);
+        });
+        document.getElementById('inp-img-radius').addEventListener('input', e => {
+            document.getElementById('val-img-radius').innerText = e.target.value;
+            updateActive('borderRadius', e.target.value);
+        });
+
+        function deleteActiveItem() {
+            if(!activeId) return;
+            document.getElementById(activeId).remove();
+            items = items.filter(i => i.id !== activeId);
+            setActiveItem(null);
+        }
+
+        function changeCanvasBg(color) {
+            document.getElementById('canvas-container').style.backgroundColor = color;
+            document.getElementById('bg-color-preview').style.backgroundColor = color;
+        }
+        function resizeCanvas(w, h) {
+            const c = document.getElementById('canvas-container');
+            c.style.width = w + 'px';
+            c.style.height = h + 'px';
+            isAutoFit = false; // Disable auto-fit on manual preset
+        }
+        function toggleGrid(show) {
+            document.getElementById('grid-layer').style.display = show ? 'block' : 'none';
+        }
+        function resetCanvasView() { resizeCanvas(800, 600); }
+
+        async function exportCanvas() {
+            const isTransparent = document.getElementById('export-transparent').checked;
+            const container = document.getElementById('canvas-container');
+            const grid = document.getElementById('grid-layer');
+            const originalBg = container.style.backgroundColor;
+            
+            const prevActive = activeId;
+            setActiveItem(null); 
+            grid.style.display = 'none'; 
+
+            if(isTransparent) {
+                container.style.backgroundColor = 'transparent';
+                container.classList.remove('shadow-2xl');
+            }
+
+            try {
+                const canvas = await html2canvas(container, {
+                    backgroundColor: null,
+                    scale: 4, 
+                    useCORS: true,
+                    logging: false
+                });
+                
+                const link = document.createElement('a');
+                link.download = `tim_cloud_text_${Date.now()}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            } catch (err) {
+                alert('导出失败');
+                console.error(err);
+            } finally {
+                container.style.backgroundColor = originalBg;
+                container.classList.add('shadow-2xl');
+                if(document.getElementById('show-grid').checked) grid.style.display = 'block';
+                if(prevActive) setActiveItem(prevActive);
+            }
+        }
+    </script>
+</body>
+</html>
