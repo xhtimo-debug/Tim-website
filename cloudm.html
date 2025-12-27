@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>云朵字生成器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Zcool+KuaiLe&family=Pacifico&family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@400;700&family=Nunito:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body {
+            font-family: 'Fredoka One', 'Zcool KuaiLe', sans-serif;
+            background-color: #f3f4f6;
+            overflow: hidden;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: none;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- 顶部栏 --- */
+        header {
+            height: 56px;
+            flex-shrink: 0;
+            background: white;
+            z-index: 50;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            gap: 8px;
+        }
+
+        .top-btn {
+            display: flex; align-items: center; gap: 4px; padding: 8px 14px;
+            border-radius: 99px; font-size: 12px; font-weight: bold; transition: all 0.1s; white-space: nowrap;
+        }
+        .btn-primary { background: #eff6ff; color: #3b82f6; }
+        .btn-primary:active { background: #dbeafe; transform: scale(0.95); }
+        .btn-accent { background: #fff7ed; color: #f59e0b; }
+        .btn-accent:active { background: #ffedd5; transform: scale(0.95); }
+        .btn-save { background: #3b82f6; color: white; margin-left: auto; box-shadow: 0 2px 5px rgba(59, 130, 246, 0.3); }
+        .btn-save:active { background: #2563eb; transform: scale(0.95); }
+
+        /* --- 画布区域 --- */
+        #canvas-wrapper {
+            flex: 1; position: relative; background-color: #f3f4f6;
+            display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 20px; z-index: 1;
+        }
+
+        #canvas-container {
+            background-color: white; box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+            position: relative; overflow: hidden; transform-origin: center center;
+        }
+
+        /* --- 元素交互 --- */
+        .draggable-item {
+            position: absolute; padding: 0; border: 1px dashed transparent; transform-origin: center center;
+        }
+        .draggable-item.active { border-color: #3b82f6; } /* 选中时不强制z-index */
+
+        .handle-btn {
+            position: absolute; width: 32px; height: 32px; background: white; border: 2px solid #3b82f6; border-radius: 50%;
+            display: none; z-index: 10000; box-shadow: 0 2px 6px rgba(0,0,0,0.15); align-items: center; justify-content: center;
+            font-size: 14px; color: #3b82f6;
+        }
+        .rotate-handle { top: -45px; left: 50%; transform: translateX(-50%); color: #10b981; border-color: #10b981; }
+        .rotate-handle::after { content: ''; position: absolute; top: 28px; left: 14px; width: 2px; height: 18px; background: #10b981; transform: translateX(-50%); pointer-events: none; }
+        .resize-handle { bottom: -16px; right: -16px; }
+        .delete-handle { top: -16px; left: -16px; color: #ef4444; border-color: #ef4444; }
+        
+        .draggable-item.active .handle-btn { display: flex; }
+
+        /* --- 底部抽屉 --- */
+        .drawer {
+            position: absolute; bottom: 0; left: 0; right: 0; background: white; border-radius: 20px 20px 0 0;
+            box-shadow: 0 -4px 40px rgba(0,0,0,0.15); transform: translateY(120%); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+            z-index: 3000; display: flex; flex-direction: column; height: 45vh; max-height: 400px;
+        }
+        .drawer.open { transform: translateY(0); }
+        .drawer-header { flex-shrink: 0; padding: 12px 16px; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; }
+        .drawer-content { flex: 1; overflow-y: auto; padding: 16px; padding-bottom: 20px; }
+
+        /* --- 底部导航栏 --- */
+        .bottom-nav {
+            position: absolute; bottom: 0; left: 0; right: 0; height: 60px; background: rgba(255, 255, 255, 0.98);
+            border-top: 1px solid #eee; display: flex; justify-content: space-around; align-items: center; z-index: 2000;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; color: #94a3b8; font-size: 10px; font-weight: bold; width: 60px; transition: all 0.1s; }
+        .nav-item i { font-size: 20px; }
+        .nav-item.active { color: #3b82f6; transform: scale(1.1); }
+        .nav-item.disabled { opacity: 0.3; filter: grayscale(1); pointer-events: none; }
+
+        /* 组件样式 */
+        .color-circle { width: 36px; height: 36px; border-radius: 50%; border: 2px solid #e5e7eb; position: relative; overflow: hidden; }
+        .color-circle input { position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; padding: 0; margin: 0; border: none; cursor: pointer; }
+        .prop-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+        .prop-label { width: 60px; font-size: 12px; font-weight: bold; color: #64748b; }
+        .prop-val { width: 30px; font-size: 12px; font-family: monospace; color: #3b82f6; text-align: right; }
+        input[type="range"] { flex: 1; height: 6px; background: #e2e8f0; border-radius: 3px; outline: none; -webkit-appearance: none; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; background: white; border: 2px solid #3b82f6; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .palette-btn { width: 42px; height: 42px; flex-shrink: 0; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.1); position: relative; overflow: hidden; }
+    </style>
+</head>
+<body>
+
+    <!-- 顶部操作栏 -->
+    <header>
+        <button onclick="addCloudText()" class="top-btn btn-primary">
+            <i class="fa-solid fa-plus"></i> 加文字
+        </button>
+        <button onclick="openDrawer('drawer-stickers')" class="top-btn btn-accent">
+            <i class="fa-regular fa-face-smile"></i> 加贴纸
+        </button>
+        <button onclick="exportImage()" class="top-btn btn-save">
+            <i class="fa-solid fa-download"></i> 保存
+        </button>
+    </header>
+
+    <!-- 画布区域 -->
+    <div id="canvas-wrapper">
+        <div id="canvas-container" class="transition-all duration-300">
+            <!-- 网格 -->
+            <div id="grid-layer" class="absolute inset-0 pointer-events-none opacity-10" 
+                 style="background-image: linear-gradient(#94a3b8 1px, transparent 1px), linear-gradient(90deg, #94a3b8 1px, transparent 1px); background-size: 20px 20px;">
+            </div>
+            <!-- 内容 -->
+            <div id="canvas-area" class="w-full h-full relative overflow-hidden"></div>
+        </div>
+    </div>
+
+    <!-- 底部导航 (Tab切换) -->
+    <nav class="bottom-nav">
+        <button onclick="switchTab('style')" class="nav-item" id="nav-style">
+            <i class="fa-solid fa-paintbrush"></i>
+            <span>样式</span>
+        </button>
+        <button onclick="switchTab('adjust')" class="nav-item" id="nav-adjust">
+            <i class="fa-solid fa-sliders"></i>
+            <span>参数</span>
+        </button>
+        <button onclick="switchTab('tools')" class="nav-item" id="nav-tools">
+            <i class="fa-solid fa-layer-group"></i>
+            <span>工具</span>
+        </button>
+    </nav>
+
+    <!-- 底部抽屉容器 -->
+    <div id="main-drawer" class="drawer">
+        <div class="drawer-header">
+            <h3 class="font-bold text-gray-800" id="drawer-title">属性编辑</h3>
+            <button onclick="closeDrawer()" class="text-gray-400 px-3 py-2 active:bg-gray-100 rounded-lg"><i class="fa-solid fa-chevron-down"></i></button>
+        </div>
+
+        <div class="drawer-content">
+            
+            <!-- 1. 样式页 (Style) -->
+            <div id="tab-content-style" class="tab-content">
+                <div id="group-text-input" class="mb-5">
+                    <label class="text-xs text-gray-400 font-bold mb-2 block">📝 文字内容</label>
+                    <input type="text" id="inp-text" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-base outline-none focus:border-blue-400 transition-all">
+                </div>
+
+                <div class="mb-5">
+                    <label class="text-xs text-gray-400 font-bold mb-2 block">🎨 一键配色</label>
+                    <div class="flex gap-3 overflow-x-auto hide-scrollbar p-1" id="palette-list"></div>
+                </div>
+
+                <div>
+                    <label class="text-xs text-gray-400 font-bold mb-2 block">🌈 自定义颜色</label>
+                    <div class="flex justify-around bg-gray-50 p-4 rounded-xl">
+                        <div class="flex flex-col items-center gap-1">
+                            <div class="color-circle" style="background: #3b82f6" id="preview-fill">
+                                <input type="color" id="inp-fill-color">
+                            </div>
+                            <span class="text-[10px] text-gray-500">字色</span>
+                        </div>
+                        <div class="flex flex-col items-center gap-1" id="wrap-stroke">
+                            <div class="color-circle" style="background: #ffffff" id="preview-stroke">
+                                <input type="color" id="inp-stroke-color">
+                            </div>
+                            <span class="text-[10px] text-gray-500">云朵</span>
+                        </div>
+                        <div class="flex flex-col items-center gap-1" id="wrap-outer">
+                            <div class="color-circle" style="background: #93c5fd" id="preview-outer">
+                                <input type="color" id="inp-outer-color">
+                            </div>
+                            <span class="text-[10px] text-gray-500">轮廓</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. 调整页 (Adjust) -->
+            <div id="tab-content-adjust" class="tab-content hidden">
+                <div class="prop-row">
+                    <span class="prop-label">字号</span>
+                    <input type="range" id="inp-size" min="20" max="250">
+                    <span class="prop-val" id="val-size">80</span>
+                </div>
+                
+                <div class="prop-row" id="row-stroke-width">
+                    <span class="prop-label">云朵</span>
+                    <input type="range" id="inp-stroke" min="0" max="80">
+                    <span class="prop-val" id="val-stroke">20</span>
+                </div>
+
+                <div class="prop-row">
+                    <span class="prop-label">旋转</span>
+                    <input type="range" id="inp-rot" min="-180" max="180">
+                    <span class="prop-val" id="val-rot">0°</span>
+                </div>
+
+                <div class="prop-row">
+                    <span class="prop-label">透明</span>
+                    <input type="range" id="inp-op" min="0" max="100">
+                    <span class="prop-val" id="val-op">100</span>
+                </div>
+
+                <div class="flex items-center justify-between bg-gray-50 p-3 rounded-lg mt-4">
+                    <span class="text-xs font-bold text-gray-600">字体样式</span>
+                    <select id="inp-font" class="bg-white border border-gray-200 text-xs rounded px-2 py-1 outline-none">
+                        <option value="'Fredoka One', cursive">Fredoka One</option>
+                        <option value="'Zcool KuaiLe', cursive">站酷快乐体</option>
+                        <option value="'Pacifico', cursive">Pacifico</option>
+                        <option value="'Ma Shan Zheng', cursive">马善政</option>
+                        <option value="'Nunito', sans-serif">Nunito</option>
+                    </select>
+                </div>
+                
+                <div class="mt-4 flex gap-4">
+                     <label class="flex items-center gap-2 text-xs font-bold text-gray-600">
+                        <input type="checkbox" id="check-outer" class="accent-blue-500 w-4 h-4"> 轮廓描边
+                    </label>
+                    <label class="flex items-center gap-2 text-xs font-bold text-gray-600">
+                        <input type="checkbox" id="check-shadow" class="accent-blue-500 w-4 h-4"> 立体投影
+                    </label>
+                </div>
+            </div>
+
+            <!-- 3. 工具页 (Tools) -->
+            <div id="tab-content-tools" class="tab-content hidden">
+                <div class="p-2 bg-yellow-50 text-yellow-700 text-xs rounded mb-3 border border-yellow-100 text-center">
+                    💡 点击层级按钮后会自动取消选中，以便查看效果
+                </div>
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <button onclick="changeLayer('up')" class="bg-gray-50 py-3 rounded-xl text-xs font-bold text-gray-600 active:bg-gray-200 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-arrow-up"></i> 上移一层
+                    </button>
+                    <button onclick="changeLayer('down')" class="bg-gray-50 py-3 rounded-xl text-xs font-bold text-gray-600 active:bg-gray-200 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-arrow-down"></i> 下移一层
+                    </button>
+                    <button onclick="changeLayer('top')" class="bg-gray-50 py-3 rounded-xl text-xs font-bold text-gray-600 active:bg-gray-200 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-angles-up"></i> 置顶
+                    </button>
+                    <button onclick="changeLayer('bottom')" class="bg-gray-50 py-3 rounded-xl text-xs font-bold text-gray-600 active:bg-gray-200 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-angles-down"></i> 置底
+                    </button>
+                </div>
+                
+                <div class="border-t border-gray-100 my-4"></div>
+
+                <button onclick="duplicateActiveItem()" class="w-full bg-blue-50 text-blue-600 py-3 rounded-xl text-xs font-bold active:bg-blue-100 flex items-center justify-center gap-2 mb-3">
+                    <i class="fa-regular fa-copy"></i> 复制元素
+                </button>
+
+                <button onclick="deleteActiveItem()" class="w-full bg-red-50 text-red-500 py-3 rounded-xl text-xs font-bold active:bg-red-100 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-trash-can"></i> 删除元素
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 贴纸抽屉 -->
+    <div id="drawer-stickers" class="drawer">
+        <div class="drawer-header">
+            <h3 class="font-bold text-gray-800">添加贴纸</h3>
+            <button onclick="closeDrawer()" class="text-gray-400 px-3 py-2 active:bg-gray-100 rounded-lg"><i class="fa-solid fa-chevron-down"></i></button>
+        </div>
+        <div class="drawer-content">
+            <div class="flex gap-2 overflow-x-auto hide-scrollbar mb-4">
+                <button onclick="loadStickers('face')" class="bg-blue-100 text-blue-600 px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap">😊 表情</button>
+                <button onclick="loadStickers('nature')" class="bg-gray-100 text-gray-600 px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap">🌻 自然</button>
+                <button onclick="loadStickers('food')" class="bg-gray-100 text-gray-600 px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap">🍔 美食</button>
+                <button onclick="loadStickers('travel')" class="bg-gray-100 text-gray-600 px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap">🚀 旅行</button>
+            </div>
+            <div id="sticker-grid" class="grid grid-cols-5 gap-4"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- 状态 ---
+        let items = [];
+        let activeId = null;
+        let zIndexCounter = 100;
+        let isAutoFit = true;
+
+        const palettes = [
+            { fill: '#ffecd2', stroke: '#ffffff', outer: '#ff9a9e' },
+            { fill: '#e0c3fc', stroke: '#ffffff', outer: '#60a5fa' },
+            { fill: '#d4fc79', stroke: '#ffffff', outer: '#4ade80' },
+            { fill: '#f6d365', stroke: '#ffffff', outer: '#fb923c' },
+            { fill: '#ff9a9e', stroke: '#ffffff', outer: '#f472b6' },
+            { fill: '#374151', stroke: '#ffffff', outer: '#000000' },
+        ];
+
+        const stickers = {
+            face: ['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','☺️','😚','😙','😋','😛','😜','🤪','😝','🤑','🤗','🤭','🤫','🤔','🤐','🤨','😐','😑','😶','😏','😒','🙄','😬','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤮','🤧','🥵','🥶','🥴','😵','🤯','🤠','🥳','😎','🤓','🧐','😕'],
+            nature: ['🌸','💐','🌷','🌹','🥀','🌺','🍒','🍓','🍏','🍎','🥭','🥥','🥝','🥑','🍆','🥔','🥕','🌽','🌶️','🥒','🥬','🥦','🧄','🧅','🍄','🥜','🌰','🍞','🥐','🥖','🥨','🥯','🥞','🧇','🧀','🍖','🍗','🥩','🥓','🍔','🍟','🍕'],
+            food: ['🍪','🎂','🍰','🧁','🥧','🍫','🍬','🍭','🍮','🍯','🍼','🥛','☕','🍵','🍶','🍾','🍷','🍸','🍹','🍺','🍻','🥂','🥃','🥤','🧃','🧉','🧊','🥢','🍽️','🍴','🥄','🔪','🏺'],
+            travel: ['🚗','🚕','🚙','🚌','🚎','🏎️','🚓','🚑','🚒','🚐','🚚','🚛','🚜','🏍️','🛵','🦽','🦼','🛺','🚲','🛴','🛹','🚏','🛣️','🛤️','🛢️','⛽','🚨','🚥','🚦','🛑','🚧','⚓','⛵','🛶','🚤','🛳️','⛴️','🛥️','🚢','✈️','🛩️','🛫']
+        };
+
+        window.onload = () => {
+            loadStickers('face');
+            initPalettes();
+            setTimeout(() => { autoFitWindow(); addCloudText(); }, 200);
+            updateNavState();
+        };
+
+        window.addEventListener('resize', () => { if (isAutoFit) requestAnimationFrame(autoFitWindow); });
+
+        function autoFitWindow() {
+            const wrapper = document.getElementById('canvas-wrapper');
+            const container = document.getElementById('canvas-container');
+            const w = wrapper.clientWidth; 
+            const h = wrapper.clientHeight;
+            const size = Math.min(w, h);
+            container.style.width = size + 'px';
+            container.style.height = size + 'px';
+            isAutoFit = true;
+        }
+
+        // --- Core ---
+        function addCloudText() { createItem('text', 'Tim'); }
+        function addSticker(emoji) { createItem('sticker', emoji); closeDrawer(); }
+
+        function createItem(type, content) {
+            const id = 'item-' + Date.now();
+            const item = {
+                id, type,
+                x: 100 + (items.length * 10) % 50, 
+                y: 150 + (items.length * 10) % 50,
+                scale: 1, rotation: 0, opacity: 100, zIndex: zIndexCounter++,
+                text: content,
+                fontFamily: "'Fredoka One', cursive",
+                fontSize: type === 'text' ? 80 : 120,
+                fillColor: type === 'text' ? '#3b82f6' : 'transparent',
+                strokeColor: type === 'text' ? '#ffffff' : 'transparent',
+                strokeWidth: type === 'text' ? 20 : 0,
+                hasOuter: type === 'text',
+                outerColor: '#93c5fd',
+                hasShadow: false
+            };
+            items.push(item);
+            renderItem(item);
+            setActiveItem(id);
+            if(type === 'text') switchTab('style');
+        }
+
+        function renderItem(item) {
+            const el = document.createElement('div');
+            el.id = item.id;
+            el.className = 'draggable-item';
+            el.style.zIndex = item.zIndex;
+            // set initial pos
+            el.style.left = item.x + 'px';
+            el.style.top = item.y + 'px';
+
+            const canvas = document.createElement('canvas');
+            el.appendChild(canvas);
+
+            // Handles
+            const createHandle = (cls, icon) => {
+                const h = document.createElement('div');
+                h.className = 'handle-btn ' + cls;
+                h.innerHTML = `<i class="fa-solid ${icon}"></i>`;
+                return h;
+            };
+            const delBtn = createHandle('delete-handle', 'fa-xmark');
+            delBtn.ontouchstart = (e) => { e.stopPropagation(); deleteActiveItem(); };
+            const rotBtn = createHandle('rotate-handle', 'fa-rotate');
+            rotBtn.ontouchstart = (e) => handleRotateStart(e, item);
+            const resBtn = createHandle('resize-handle', 'fa-expand');
+            resBtn.ontouchstart = (e) => handleResizeStart(e, item);
+
+            el.append(delBtn, rotBtn, resBtn);
+            el.addEventListener('touchstart', (e) => handleTouchStart(e, item), {passive: false});
+            el.addEventListener('mousedown', (e) => handleTouchStart(e, item)); 
+
+            document.getElementById('canvas-area').appendChild(el);
+            updateItemDOM(item);
+        }
+
+        function updateItemDOM(item) {
+            const el = document.getElementById(item.id);
+            if(!el) return;
+            const canvas = el.querySelector('canvas');
+            const ctx = canvas.getContext('2d');
+            const dpr = 4; // High Res
+
+            el.style.transform = `rotate(${item.rotation}deg)`;
+            el.style.zIndex = item.zIndex;
+            el.style.opacity = item.opacity / 100;
+
+            const isSticker = item.type === 'sticker';
+            const fontFamily = isSticker ? "sans-serif" : item.fontFamily;
+            const fontSize = item.fontSize;
+            const fontStr = `bold ${fontSize}px ${fontFamily.replace(/'/g, '"')}`;
+            
+            ctx.font = fontStr;
+            const metrics = ctx.measureText(item.text);
+            const wText = metrics.width;
+            const hText = fontSize * 1.2;
+            
+            const strokeW = parseInt(item.strokeWidth || 0);
+            const pad = strokeW + 20;
+            const w = Math.ceil(wText + pad * 2);
+            const h = Math.ceil(hText + pad * 2);
+
+            canvas.width = w * dpr;
+            canvas.height = h * dpr;
+            ctx.scale(dpr, dpr);
+
+            ctx.font = fontStr;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const cx = w/2, cy = h/2 + (fontSize * 0.05);
+
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+
+            // Draw Logic
+            if(isSticker) {
+                // Sticker: Simple Draw
+                if(item.hasShadow) {
+                    ctx.shadowColor = 'rgba(0,0,0,0.2)';
+                    ctx.shadowBlur = 5; ctx.shadowOffsetX = 3; ctx.shadowOffsetY = 3;
+                }
+                ctx.fillText(item.text, cx, cy);
+            } else {
+                // Text: Cloud Style
+                if(item.hasShadow) {
+                    ctx.shadowColor = 'rgba(0,0,0,0.2)';
+                    ctx.shadowBlur = 5; ctx.shadowOffsetX = 3; ctx.shadowOffsetY = 3;
+                }
+                if(item.hasOuter) {
+                    ctx.lineWidth = strokeW + 12;
+                    ctx.strokeStyle = item.outerColor;
+                    ctx.strokeText(item.text, cx, cy);
+                    ctx.shadowColor = 'transparent';
+                }
+                if(!item.hasOuter) ctx.shadowColor = 'transparent';
+                
+                ctx.lineWidth = strokeW;
+                ctx.strokeStyle = item.strokeColor;
+                ctx.strokeText(item.text, cx, cy);
+                
+                ctx.fillStyle = item.strokeColor;
+                ctx.fillText(item.text, cx, cy);
+                
+                ctx.fillStyle = item.fillColor;
+                ctx.fillText(item.text, cx, cy);
+            }
+
+            canvas.style.width = (w * item.scale) + 'px';
+            canvas.style.height = (h * item.scale) + 'px';
+            el.style.width = (w * item.scale) + 'px';
+            el.style.height = (h * item.scale) + 'px';
+        }
+
+        // --- Interaction ---
+        let dragItem = null, startState = {};
+
+        function handleTouchStart(e, item) {
+            if(e.target.className.includes('handle')) return;
+            // Normalize
+            const evt = e.touches ? e.touches[0] : e;
+            e.preventDefault(); e.stopPropagation();
+            setActiveItem(item.id);
+            dragItem = item;
+            
+            startState = { x: evt.clientX, y: evt.clientY, itemX: item.x, itemY: item.y };
+            
+            const moveEvt = e.type === 'touchstart' ? 'touchmove' : 'mousemove';
+            const endEvt = e.type === 'touchstart' ? 'touchend' : 'mouseup';
+            document.addEventListener(moveEvt, handleDragMove, {passive: false});
+            document.addEventListener(endEvt, handleDragEnd);
+        }
+
+        function handleDragMove(e) {
+            if(!dragItem) return;
+            e.preventDefault();
+            const evt = e.touches ? e.touches[0] : e;
+            dragItem.x = startState.itemX + (evt.clientX - startState.x);
+            dragItem.y = startState.itemY + (evt.clientY - startState.y);
+            const el = document.getElementById(dragItem.id);
+            el.style.left = dragItem.x + 'px';
+            el.style.top = dragItem.y + 'px';
+        }
+
+        function handleDragEnd(e) {
+            const moveEvt = e.type === 'touchend' ? 'touchmove' : 'mousemove';
+            const endEvt = e.type === 'touchend' ? 'touchend' : 'mouseup';
+            document.removeEventListener(moveEvt, handleDragMove);
+            document.removeEventListener(endEvt, handleDragEnd);
+            dragItem = null;
+        }
+
+        // Rotate & Resize
+        function handleRotateStart(e, item) {
+            e.stopPropagation(); e.preventDefault();
+            dragItem = item;
+            const rect = document.getElementById(item.id).getBoundingClientRect();
+            startState = { cx: rect.left + rect.width/2, cy: rect.top + rect.height/2 };
+            document.addEventListener('touchmove', handleRotateMove, {passive: false});
+            document.addEventListener('touchend', () => document.removeEventListener('touchmove', handleRotateMove));
+        }
+        function handleRotateMove(e) {
+            e.preventDefault();
+            const t = e.touches[0];
+            const angle = Math.atan2(t.clientY - startState.cy, t.clientX - startState.cx) * (180/Math.PI) + 90;
+            dragItem.rotation = angle;
+            updateItemDOM(dragItem);
+            // Sync UI
+            const inp = document.getElementById('inp-rot');
+            if(inp) { inp.value = angle; document.getElementById('val-rot').innerText = Math.round(angle) + '°'; }
+        }
+
+        function handleResizeStart(e, item) {
+            e.stopPropagation(); e.preventDefault();
+            dragItem = item;
+            const rect = document.getElementById(item.id).getBoundingClientRect();
+            const t = e.touches[0];
+            startState = { cx: rect.left + rect.width/2, cy: rect.top + rect.height/2, scale: item.scale,
+                           dist: Math.hypot(t.clientX - (rect.left + rect.width/2), t.clientY - (rect.top + rect.height/2)) };
+            document.addEventListener('touchmove', handleResizeMove, {passive: false});
+            document.addEventListener('touchend', () => document.removeEventListener('touchmove', handleResizeMove));
+        }
+        function handleResizeMove(e) {
+            e.preventDefault();
+            const t = e.touches[0];
+            const dist = Math.hypot(t.clientX - startState.cx, t.clientY - startState.cy);
+            let s = startState.scale * (dist / startState.dist);
+            s = Math.max(0.2, Math.min(s, 5));
+            dragItem.scale = s;
+            updateItemDOM(dragItem);
+        }
+
+        // Global Click
+        const wrapper = document.getElementById('canvas-wrapper');
+        const deselect = () => { setActiveItem(null); };
+        wrapper.addEventListener('touchstart', (e) => { if(e.target === wrapper || e.target.id === 'canvas-container' || e.target.id === 'canvas-area') deselect(); });
+        wrapper.addEventListener('mousedown', (e) => { if(e.target === wrapper || e.target.id === 'canvas-container' || e.target.id === 'canvas-area') deselect(); });
+
+        // --- Drawer Logic ---
+        function setActiveItem(id) {
+            document.querySelectorAll('.draggable-item').forEach(e => e.classList.remove('active'));
+            activeId = id;
+            updateNavState();
+
+            if(!id) {
+                closeDrawer();
+                return;
+            }
+
+            const el = document.getElementById(id);
+            el.classList.add('active');
+            
+            const item = items.find(i => i.id === id);
+            syncDrawer(item);
+        }
+
+        function updateNavState() {
+            const navs = document.querySelectorAll('.nav-item');
+            navs.forEach(n => {
+                if(!activeId) n.classList.add('disabled');
+                else n.classList.remove('disabled');
+            });
+        }
+
+        function switchTab(tab) {
+            if(!activeId) return;
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById('nav-'+tab).classList.add('active');
+            openDrawer('main-drawer');
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+            document.getElementById('tab-content-'+tab).classList.remove('hidden');
+            const titles = { style: '外观样式', adjust: '参数调整', tools: '工具箱' };
+            document.getElementById('drawer-title').innerText = titles[tab];
+        }
+
+        function syncDrawer(item) {
+            const isSticker = item.type === 'sticker';
+            document.getElementById('inp-text').value = item.text;
+            document.getElementById('inp-size').value = item.fontSize;
+            document.getElementById('val-size').innerText = item.fontSize;
+            document.getElementById('inp-stroke').value = item.strokeWidth;
+            document.getElementById('val-stroke').innerText = item.strokeWidth;
+            document.getElementById('inp-rot').value = item.rotation;
+            document.getElementById('val-rot').innerText = Math.round(item.rotation) + '°';
+            document.getElementById('inp-op').value = item.opacity;
+            document.getElementById('val-op').innerText = item.opacity;
+            
+            if(!isSticker) {
+                document.getElementById('preview-fill').style.background = item.fillColor;
+                document.getElementById('preview-stroke').style.background = item.strokeColor;
+                document.getElementById('preview-outer').style.background = item.outerColor;
+                document.getElementById('inp-fill-color').value = item.fillColor;
+                document.getElementById('inp-stroke-color').value = item.strokeColor;
+                document.getElementById('inp-outer-color').value = item.outerColor;
+                document.getElementById('check-outer').checked = item.hasOuter;
+                document.getElementById('check-shadow').checked = item.hasShadow;
+            }
+
+            // Show/Hide
+            const toHide = ['group-text-input', 'row-stroke-width', 'wrap-stroke', 'wrap-outer'];
+            toHide.forEach(id => {
+                const el = document.getElementById(id);
+                // Simple logic: hide text-specifics for stickers
+                if(id === 'group-text-input') el.style.display = isSticker ? 'none' : 'block';
+                else el.style.display = isSticker ? 'none' : 'flex';
+            });
+        }
+
+        function openDrawer(id) {
+            document.querySelectorAll('.drawer').forEach(d => d.classList.remove('open'));
+            document.getElementById(id).classList.add('open');
+        }
+        function closeDrawer() {
+            document.querySelectorAll('.drawer').forEach(d => d.classList.remove('open'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        }
+
+        // --- Updates ---
+        function updateActive(key, val) {
+            if(!activeId) return;
+            const item = items.find(i => i.id === activeId);
+            item[key] = val;
+            updateItemDOM(item);
+            
+            // Sync Text
+            if(key === 'fontSize') document.getElementById('val-size').innerText = val;
+            if(key === 'strokeWidth') document.getElementById('val-stroke').innerText = val;
+            if(key === 'rotation') document.getElementById('val-rot').innerText = val + '°';
+            if(key === 'opacity') document.getElementById('val-op').innerText = val;
+            
+            if(key.includes('Color')) {
+                const type = key.replace('Color','').replace('inp-','');
+                const prev = document.getElementById('preview-'+type);
+                if(prev) prev.style.background = val;
+            }
+        }
+
+        // Bindings
+        const bind = (id, key, type='int') => {
+            document.getElementById(id).addEventListener('input', e => {
+                let val = e.target.value;
+                if(type==='int') val = parseInt(val);
+                updateActive(key, val);
+            });
+        };
+        bind('inp-text', 'text', 'str');
+        bind('inp-size', 'fontSize');
+        bind('inp-stroke', 'strokeWidth');
+        bind('inp-rot', 'rotation');
+        bind('inp-op', 'opacity');
+        bind('inp-fill-color', 'fillColor', 'str');
+        bind('inp-stroke-color', 'strokeColor', 'str');
+        bind('inp-outer-color', 'outerColor', 'str');
+        document.getElementById('check-outer').addEventListener('change', e => updateActive('hasOuter', e.target.checked));
+        document.getElementById('check-shadow').addEventListener('change', e => updateActive('hasShadow', e.target.checked));
+        document.getElementById('inp-font').addEventListener('change', e => updateActive('fontFamily', e.target.value, 'str'));
+
+        // --- Tools ---
+        function changeLayer(action) {
+            if(!activeId) return;
+            const item = items.find(i => i.id === activeId);
+            if(action === 'top') item.zIndex = zIndexCounter++;
+            if(action === 'bottom') item.zIndex = 1;
+            if(action === 'up') item.zIndex++;
+            if(action === 'down') item.zIndex--;
+            updateItemDOM(item);
+            setActiveItem(null); // Deselect to see changes
+        }
+
+        function duplicateActiveItem() {
+            if(!activeId) return;
+            const source = items.find(i => i.id === activeId);
+            const newItem = JSON.parse(JSON.stringify(source));
+            newItem.id = 'item-' + Date.now();
+            newItem.x += 30; newItem.y += 30;
+            newItem.zIndex = zIndexCounter++;
+            items.push(newItem);
+            renderItem(newItem);
+            setActiveItem(newItem.id);
+        }
+
+        function centerActiveItem() {
+            /* Removed as requested */
+        }
+
+        function deleteActiveItem() {
+            if(!activeId) return;
+            document.getElementById(activeId).remove();
+            items = items.filter(i => i.id !== activeId);
+            setActiveItem(null);
+        }
+
+        function initPalettes() {
+            const list = document.getElementById('palette-list');
+            palettes.forEach(p => {
+                const div = document.createElement('div');
+                div.className = 'palette-btn';
+                div.style.background = `conic-gradient(${p.outer} 0% 33%, ${p.stroke} 33% 66%, ${p.fill} 66% 100%)`;
+                div.onclick = () => {
+                    if(!activeId) return;
+                    updateActive('fillColor', p.fill);
+                    updateActive('strokeColor', p.stroke);
+                    updateActive('outerColor', p.outer);
+                };
+                list.appendChild(div);
+            });
+        }
+
+        // --- Export (Pure Canvas Rewrite) ---
+        async function exportImage() {
+            setActiveItem(null);
+            closeDrawer();
+            
+            // Wait for UI to settle
+            await new Promise(r => setTimeout(r, 100));
+
+            const container = document.getElementById('canvas-container');
+            const w = container.offsetWidth;
+            const h = container.offsetHeight;
+            
+            // Create a high-res offscreen canvas
+            const exCanvas = document.createElement('canvas');
+            const dpr = 4;
+            exCanvas.width = w * dpr;
+            exCanvas.height = h * dpr;
+            const ctx = exCanvas.getContext('2d');
+            
+            // Fill White Background
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, exCanvas.width, exCanvas.height);
+            
+            ctx.scale(dpr, dpr);
+
+            // Sort items by z-index for drawing order
+            const sortedItems = [...items].sort((a, b) => a.zIndex - b.zIndex);
+
+            // Helper to draw (reusing logic but targeted at export ctx)
+            // We need to fetch images if any
+            for (const item of sortedItems) {
+                ctx.save();
+                // Position is center based in CSS transform, but item.x/y is top-left
+                // In DOM logic: item.x/y is top-left of the wrapper DIV.
+                // Wrapper Div size depends on content scale.
+                // We need to calculate the center of the item relative to the canvas.
+                
+                // Re-measure dimensions to find center
+                let iw, ih;
+                const fontSize = item.fontSize;
+                const strokeW = parseInt(item.strokeWidth || 0);
+                const pad = strokeW + 20; // Must match updateItemDOM padding
+                
+                if (item.type === 'text' || item.type === 'sticker') {
+                    const isSticker = item.type === 'sticker';
+                    const fontFamily = isSticker ? "sans-serif" : item.fontFamily;
+                    ctx.font = `bold ${fontSize}px ${fontFamily.replace(/'/g, '"')}`;
+                    const metrics = ctx.measureText(item.text);
+                    iw = Math.ceil(metrics.width + pad * 2);
+                    ih = Math.ceil((fontSize * 1.2) + pad * 2);
+                } else {
+                    iw = item.width * item.scale; // Image width
+                    ih = item.height * item.scale;
+                    // Note: updateItemDOM scales the canvas/div. 
+                    // item.width is raw image width? 
+                    // Let's check handleImageUpload: width/height is screen-fit size.
+                    // updateItemDOM sets el.style.width = (w * scale)
+                    // For image: w = item.width + borderWidth*2.
+                    const b = item.borderWidth * 2;
+                    iw = (item.width + b);
+                    ih = (item.height + b);
+                }
+
+                // Apply Scale to dimensions for center calculation
+                const finalW = iw * item.scale;
+                const finalH = ih * item.scale;
+
+                // Center of the item
+                const cx = item.x + finalW / 2;
+                const cy = item.y + finalH / 2;
+
+                // Move context to item center
+                ctx.translate(cx, cy);
+                ctx.rotate(item.rotation * Math.PI / 180);
+                ctx.scale(item.scale, item.scale);
+                ctx.globalAlpha = item.opacity / 100;
+                
+                // Move back to top-left of the drawing area
+                ctx.translate(-iw/2, -ih/2);
+
+                // --- Draw Logic (Copied from updateItemDOM basically) ---
+                const drawCx = iw/2;
+                const drawCy = ih/2 + (fontSize ? fontSize * 0.05 : 0);
+
+                if (item.type === 'text' || item.type === 'sticker') {
+                    const isSticker = item.type === 'sticker';
+                    // Re-set font because context restore might clear it? No, but safe to set
+                    const fontFamily = isSticker ? "sans-serif" : item.fontFamily;
+                    ctx.font = `bold ${fontSize}px ${fontFamily.replace(/'/g, '"')}`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.lineJoin = 'round';
+                    ctx.lineCap = 'round';
+
+                    if(isSticker) {
+                        if(item.hasShadow) {
+                            ctx.shadowColor = 'rgba(0,0,0,0.2)';
+                            ctx.shadowBlur = 5; ctx.shadowOffsetX = 3; ctx.shadowOffsetY = 3;
+                        }
+                        ctx.fillText(item.text, drawCx, drawCy);
+                    } else {
+                        if(item.hasShadow) {
+                            ctx.shadowColor = 'rgba(0,0,0,0.2)';
+                            ctx.shadowBlur = 5; ctx.shadowOffsetX = 3; ctx.shadowOffsetY = 3;
+                        }
+                        if(item.hasOuter) {
+                            ctx.lineWidth = strokeW + 12;
+                            ctx.strokeStyle = item.outerColor;
+                            ctx.strokeText(item.text, drawCx, drawCy);
+                            ctx.shadowColor = 'transparent';
+                        }
+                        if(!item.hasOuter) ctx.shadowColor = 'transparent';
+                        ctx.lineWidth = strokeW;
+                        ctx.strokeStyle = item.strokeColor;
+                        ctx.strokeText(item.text, drawCx, drawCy);
+                        ctx.fillStyle = item.strokeColor;
+                        ctx.fillText(item.text, drawCx, drawCy);
+                        ctx.fillStyle = item.fillColor;
+                        ctx.fillText(item.text, drawCx, drawCy);
+                    }
+                } else if (item.type === 'image') {
+                    // Need to load image again? It's dataURL, so we can creates new Image
+                    const img = new Image();
+                    img.src = item.src;
+                    // We need to wait for it to load? It's base64 so it should be fast, 
+                    // but strictly speaking we need a promise.
+                    await new Promise(r => { if(img.complete) r(); else img.onload = r; });
+                    
+                    const maxR = Math.min(item.width, item.height) / 2;
+                    const radiusPx = (item.borderRadius / 50) * maxR;
+                    const ox = item.borderWidth;
+                    const oy = item.borderWidth;
+                    
+                    ctx.beginPath();
+                    // Custom round rect
+                    ctx.roundRect(ox, oy, item.width, item.height, radiusPx);
+                    
+                    if(item.borderWidth > 0) {
+                        ctx.shadowColor = 'rgba(0,0,0,0.1)';
+                        ctx.shadowBlur = 6; ctx.shadowOffsetY = 4;
+                    }
+                    ctx.save();
+                    ctx.clip();
+                    ctx.drawImage(img, ox, oy, item.width, item.height);
+                    ctx.restore();
+
+                    if(item.borderWidth > 0) {
+                        ctx.shadowColor = 'transparent';
+                        ctx.lineWidth = item.borderWidth;
+                        ctx.strokeStyle = item.borderColor;
+                        ctx.stroke();
+                    }
+                }
+
+                ctx.restore();
+            }
+
+            // Download
+            const link = document.createElement('a');
+            link.download = `tim_cloud_${Date.now()}.png`;
+            link.href = exCanvas.toDataURL('image/png');
+            link.click();
+        }
+    </script>
+</body>
+</html>
