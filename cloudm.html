@@ -262,7 +262,7 @@
 
                 <div class="prop-row">
                     <span class="prop-label" id="lbl-size">字号</span>
-                    <input type="range" id="inp-size" min="20" max="250">
+                    <input type="range" id="inp-size" min="20" max="300">
                     <span class="prop-val" id="val-size">80</span>
                 </div>
                 
@@ -619,13 +619,13 @@
         }
 
         function startResize(e, item) {
-            e.preventDefault(); e.stopPropagation();
+            e.stopPropagation(); e.preventDefault();
             const pt = getPt(e);
             const rect = document.getElementById(item.id).getBoundingClientRect();
             const cx = rect.left + rect.width/2;
             const cy = rect.top + rect.height/2;
             const dist = Math.hypot(pt.x - cx, pt.y - cy);
-            dragInfo = { type: 'resize', item, cx, cy, startDist: dist, startScale: item.scale };
+            dragInfo = { type: 'resize', item, cx, cy, startDist: dist, startScale: item.scale, startFontSize: item.fontSize };
             bindEvents();
         }
 
@@ -644,11 +644,27 @@
                 syncVal('rot', Math.round(angle) + '°', angle);
             } else if(type === 'resize') {
                 const dist = Math.hypot(pt.x - dragInfo.cx, pt.y - dragInfo.cy);
-                item.scale = Math.max(0.2, dragInfo.startScale * (dist / dragInfo.startDist));
-                // 实时更新缩放值
-                if(item.type === 'image') {
-                    const pct = Math.round(item.scale * 100);
-                    syncVal('size', pct + '%', pct);
+                const ratio = dist / dragInfo.startDist;
+                
+                if (item.type === 'image') {
+                    let s = dragInfo.startScale * ratio;
+                    s = Math.max(0.1, Math.min(s, 5));
+                    item.scale = s;
+                    // Real-time update for scale slider
+                    if(activeId === item.id) {
+                        const pct = Math.round(s * 100);
+                        document.getElementById('val-size').innerText = pct + '%';
+                        document.getElementById('inp-size').value = pct;
+                    }
+                } else {
+                    let fs = dragInfo.startFontSize * ratio;
+                    fs = Math.max(10, Math.min(fs, 300));
+                    item.fontSize = Math.round(fs);
+                    // Real-time update for font size slider
+                    if(activeId === item.id) {
+                        document.getElementById('val-size').innerText = item.fontSize;
+                        document.getElementById('inp-size').value = item.fontSize;
+                    }
                 }
             }
             drawItemCanvas(item);
