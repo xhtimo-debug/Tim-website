@@ -33,17 +33,17 @@
             background: white;
             z-index: 50; 
             display: flex; align-items: center; justify-content: space-between;
-            padding: 0 16px;
+            padding: 0 12px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.05);
         }
 
-        /* --- 2. 底部栏 (层级最高) --- */
+        /* --- 2. 底部栏 --- */
         #app-bottom-nav {
             position: absolute;
             bottom: 0; left: 0; right: 0;
             height: var(--nav-h);
             background: white;
-            z-index: 6000; /* 确保在抽屉之上 */
+            z-index: 6000; 
             border-top: 1px solid #e2e8f0;
             display: flex; justify-content: space-around; align-items: center;
             padding-bottom: env(safe-area-inset-bottom);
@@ -68,21 +68,19 @@
             overflow: hidden;
         }
 
-        /* --- 4. 抽屉 (位于导航栏上方) --- */
+        /* --- 4. 抽屉 --- */
         .drawer {
             position: absolute;
             left: 0; right: 0;
-            /* 关键修改：底部位置设为导航栏高度 */
             bottom: var(--nav-h); 
-            /* 关键修改：高度限制为屏幕的 32%，约 1/3 */
-            height: 32vh; 
-            min-height: 250px; /* 保证最小可用高度 */
-            max-height: 350px;
+            height: 35vh; 
+            min-height: 280px; 
+            max-height: 400px;
             background: white;
             border-radius: 20px 20px 0 0;
             box-shadow: 0 -4px 20px rgba(0,0,0,0.05);
-            z-index: 5000; /* 低于底部导航栏 */
-            transform: translateY(120%); /* 默认向下隐藏 */
+            z-index: 5000; 
+            transform: translateY(120%); 
             transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
             display: flex; flex-direction: column;
             border-bottom: 1px solid #f1f5f9;
@@ -99,13 +97,14 @@
 
         /* --- 组件样式 --- */
         .top-btn {
-            display: flex; align-items: center; gap: 4px; padding: 8px 12px;
-            border-radius: 99px; font-size: 12px; font-weight: bold;
+            display: flex; align-items: center; gap: 4px; padding: 8px 10px;
+            border-radius: 8px; font-size: 11px; font-weight: bold;
             background: #eff6ff; color: #3b82f6; transition: all 0.1s;
         }
         .top-btn:active { transform: scale(0.95); background: #dbeafe; }
         .top-btn.save { background: #3b82f6; color: white; margin-left: auto; }
         .top-btn.sticker { background: #fff7ed; color: #f59e0b; }
+        .top-btn.image { background: #f0fdf4; color: #16a34a; }
 
         .nav-item {
             display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -115,7 +114,6 @@
         }
         .nav-item i { font-size: 22px; }
         .nav-item.active { color: #3b82f6; }
-        /* 增加按压效果 */
         .nav-item:active { transform: scale(0.95); } 
         .nav-item.disabled { opacity: 0.3; filter: grayscale(1); pointer-events: none; }
 
@@ -127,21 +125,21 @@
         .draggable-item.active { border-color: #3b82f6; z-index: 1000; }
 
         .handle-btn {
-            position: absolute; width: 32px; height: 32px; background: white;
+            position: absolute; width: 30px; height: 30px; background: white;
             border: 2px solid #3b82f6; border-radius: 50%;
             display: none; z-index: 2000;
             align-items: center; justify-content: center; color: #3b82f6; font-size: 14px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
         .draggable-item.active .handle-btn { display: flex; }
-        .rotate-handle { top: -45px; left: 50%; transform: translateX(-50%); color: #10b981; border-color: #10b981; }
-        .rotate-handle::after { content:''; position: absolute; top: 30px; width: 1px; height: 15px; background: #10b981; }
-        .resize-handle { bottom: -16px; right: -16px; }
-        .delete-handle { top: -16px; left: -16px; color: #ef4444; border-color: #ef4444; }
+        .rotate-handle { top: -40px; left: 50%; transform: translateX(-50%); color: #10b981; border-color: #10b981; }
+        .rotate-handle::after { content:''; position: absolute; top: 28px; width: 1px; height: 15px; background: #10b981; }
+        .resize-handle { bottom: -15px; right: -15px; }
+        .delete-handle { top: -15px; left: -15px; color: #ef4444; border-color: #ef4444; }
 
         /* UI 小部件 */
         .color-well { width: 36px; height: 36px; border-radius: 8px; border: 2px solid #e2e8f0; position: relative; overflow: hidden; }
-        .color-well input { position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; opacity: 0; }
+        .color-well input { position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; opacity: 0; cursor: pointer; }
         
         .prop-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
         .prop-label { width: 50px; font-size: 11px; font-weight: bold; color: #64748b; }
@@ -156,17 +154,23 @@
 </head>
 <body>
 
+    <!-- 隐藏的文件上传 Input -->
+    <input type="file" id="file-input" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
+
     <!-- 1. 顶部栏 -->
     <header id="app-header">
-        <div class="flex gap-2">
+        <div class="flex gap-2 overflow-x-auto hide-scrollbar">
             <button onclick="addCloudText()" class="top-btn">
-                <i class="fa-solid fa-plus"></i> 文字
+                <i class="fa-solid fa-font"></i> 文字
             </button>
             <button onclick="openDrawer('drawer-stickers')" class="top-btn sticker">
                 <i class="fa-regular fa-face-smile"></i> 贴纸
             </button>
+            <button onclick="document.getElementById('file-input').click()" class="top-btn image">
+                <i class="fa-regular fa-image"></i> 图片
+            </button>
         </div>
-        <button onclick="exportImage()" class="top-btn save">
+        <button onclick="exportImage()" class="top-btn save flex-shrink-0">
             <i class="fa-solid fa-download"></i> 保存
         </button>
     </header>
@@ -185,7 +189,7 @@
         </div>
     </div>
 
-    <!-- 3. 底部导航栏 (现在在抽屉上方) -->
+    <!-- 3. 底部导航栏 -->
     <nav id="app-bottom-nav">
         <button onclick="switchTab('style')" class="nav-item" id="nav-style">
             <i class="fa-solid fa-paintbrush"></i> 样式
@@ -198,7 +202,7 @@
         </button>
     </nav>
 
-    <!-- 4. 属性编辑抽屉 (位于底部导航栏之上) -->
+    <!-- 4. 属性编辑抽屉 -->
     <div id="main-drawer" class="drawer">
         <div class="drawer-header">
             <h3 class="font-bold text-gray-800 text-sm" id="drawer-title">属性</h3>
@@ -213,15 +217,15 @@
                     <input type="text" id="inp-text" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm">
                 </div>
                 
-                <div class="mb-4">
+                <div class="mb-4" id="palette-group">
                     <label class="text-xs text-gray-400 font-bold mb-2 block">一键配色</label>
                     <div class="flex gap-3 overflow-x-auto hide-scrollbar p-1" id="palette-list"></div>
                 </div>
 
-                <div>
+                <div id="color-group">
                     <label class="text-xs text-gray-400 font-bold mb-2 block">自定义颜色</label>
                     <div class="flex justify-around bg-gray-50 p-2 rounded-xl border border-gray-100">
-                        <div class="flex flex-col items-center gap-1">
+                        <div class="flex flex-col items-center gap-1" id="wrap-fill">
                             <div class="color-well" style="background:#3b82f6" id="well-fill">
                                 <input type="color" id="inp-fill">
                             </div>
@@ -231,7 +235,7 @@
                             <div class="color-well" style="background:#ffffff" id="well-stroke">
                                 <input type="color" id="inp-stroke">
                             </div>
-                            <span class="text-[10px] text-gray-500">云朵</span>
+                            <span class="text-[10px] text-gray-500" id="lbl-stroke">云朵</span>
                         </div>
                         <div class="flex flex-col items-center gap-1" id="wrap-outer">
                             <div class="color-well" style="background:#93c5fd" id="well-outer">
@@ -257,15 +261,23 @@
                 </div>
 
                 <div class="prop-row">
-                    <span class="prop-label">字号</span>
+                    <span class="prop-label" id="lbl-size">字号</span>
                     <input type="range" id="inp-size" min="20" max="250">
                     <span class="prop-val" id="val-size">80</span>
                 </div>
-                <div class="prop-row" id="row-stroke">
-                    <span class="prop-label">厚度</span>
+                
+                <div class="prop-row" id="row-width">
+                    <span class="prop-label" id="lbl-width">厚度</span>
                     <input type="range" id="inp-width" min="0" max="80">
                     <span class="prop-val" id="val-width">20</span>
                 </div>
+                
+                <div class="prop-row hidden" id="row-radius">
+                    <span class="prop-label">圆角</span>
+                    <input type="range" id="inp-radius" min="0" max="50">
+                    <span class="prop-val" id="val-radius">15</span>
+                </div>
+
                 <div class="prop-row">
                     <span class="prop-label">旋转</span>
                     <input type="range" id="inp-rot" min="-180" max="180">
@@ -278,8 +290,9 @@
                 </div>
 
                 <div class="flex gap-4 pt-2">
-                    <label class="flex items-center gap-2 text-xs font-bold text-gray-600">
-                        <input type="checkbox" id="chk-outer" class="accent-blue-500 w-4 h-4"> 轮廓描边
+                    <label class="flex items-center gap-2 text-xs font-bold text-gray-600" id="opt-outer">
+                        <input type="checkbox" id="chk-outer" class="accent-blue-500 w-4 h-4"> 
+                        <span id="txt-outer">轮廓描边</span>
                     </label>
                     <label class="flex items-center gap-2 text-xs font-bold text-gray-600">
                         <input type="checkbox" id="chk-shadow" class="accent-blue-500 w-4 h-4"> 投影
@@ -313,7 +326,6 @@
             <button onclick="closeDrawer()" class="text-gray-400 p-2"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <div class="drawer-content">
-            <!-- 分类导航 -->
             <div class="flex gap-2 overflow-x-auto hide-scrollbar mb-4 border-b border-gray-100 pb-2">
                 <button onclick="filterStickers('face')" class="bg-yellow-50 text-yellow-600 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap">😀 表情</button>
                 <button onclick="filterStickers('nature')" class="bg-green-50 text-green-600 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap">🌸 自然</button>
@@ -352,7 +364,7 @@
 
         window.onload = () => {
             initCanvasSize();
-            filterStickers('face'); // 默认显示表情
+            filterStickers('face');
             initPalettes();
             setTimeout(() => addCloudText(), 100);
             updateNavState();
@@ -378,27 +390,64 @@
             createItem('sticker', s);
             closeDrawer();
         }
+        function handleImageUpload(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                const img = new Image();
+                img.onload = () => {
+                    // Smart resizing
+                    let w = img.width, h = img.height;
+                    const max = 250;
+                    if(w > h && w > max) { h *= max/w; w = max; }
+                    else if(h > max) { w *= max/h; h = max; }
+                    createItem('image', evt.target.result, w, h);
+                };
+                img.src = evt.target.result;
+            };
+            reader.readAsDataURL(file);
+            e.target.value = ''; // reset
+        }
 
-        function createItem(type, content) {
+        function createItem(type, content, w, h) {
             const id = 'item-' + Date.now();
-            const item = {
+            const base = {
                 id, type,
                 x: 100 + (items.length * 5) % 50, 
                 y: 100 + (items.length * 5) % 50,
                 scale: 1, rotation: 0, opacity: 100, zIndex: zIndexCounter++,
-                text: content,
-                fontFamily: "'Fredoka One', cursive",
-                fontSize: type === 'text' ? 80 : 120,
-                fillColor: type === 'text' ? '#3b82f6' : 'transparent',
-                strokeColor: type === 'text' ? '#ffffff' : 'transparent',
-                strokeWidth: type === 'text' ? 20 : 0,
-                hasOuter: type === 'text', outerColor: '#93c5fd',
-                hasShadow: false
+                hasShadow: false,
+                // Default props
+                strokeWidth: 0, strokeColor: '#ffffff',
+                fillColor: 'transparent', outerColor: '#93c5fd',
+                borderRadius: 15,
+                hasOuter: false
             };
-            items.push(item);
-            renderItemDOM(item);
+
+            if(type === 'text') {
+                base.text = content;
+                base.fontFamily = "'Fredoka One', cursive";
+                base.fontSize = 80;
+                base.fillColor = '#3b82f6';
+                base.strokeWidth = 20;
+                base.hasOuter = true;
+            } else if (type === 'sticker') {
+                base.text = content;
+                base.fontSize = 120;
+            } else if (type === 'image') {
+                base.src = content;
+                base.width = w; base.height = h;
+                base.strokeWidth = 10;
+                base.strokeColor = '#ffffff';
+                base.hasOuter = true; // Image border
+            }
+
+            items.push(base);
+            renderItemDOM(base);
             setActiveItem(id);
             if(type === 'text') switchTab('style');
+            else switchTab('adjust');
         }
 
         // --- 渲染 ---
@@ -448,36 +497,79 @@
             el.style.zIndex = item.zIndex;
             el.style.opacity = item.opacity / 100;
 
-            const isSticker = item.type === 'sticker';
-            const font = isSticker ? "sans-serif" : item.fontFamily;
-            ctx.font = `bold ${item.fontSize}px ${font}`;
-            
-            const metrics = ctx.measureText(item.text);
-            const wText = metrics.width;
-            const hText = item.fontSize * 1.2;
             const strokeW = parseInt(item.strokeWidth || 0);
             const pad = strokeW + 20;
-            const w = Math.ceil(wText + pad * 2);
-            const h = Math.ceil(hText + pad * 2);
+
+            let w, h, cx, cy;
+
+            if (item.type === 'image') {
+                w = item.width + pad*2;
+                h = item.height + pad*2;
+            } else {
+                const isSticker = item.type === 'sticker';
+                const font = isSticker ? "sans-serif" : item.fontFamily;
+                ctx.font = `bold ${item.fontSize}px ${font}`;
+                const metrics = ctx.measureText(item.text);
+                const wText = metrics.width;
+                const hText = item.fontSize * 1.2;
+                w = Math.ceil(wText + pad * 2);
+                h = Math.ceil(hText + pad * 2);
+            }
 
             canvas.width = w * dpr; canvas.height = h * dpr;
             ctx.scale(dpr, dpr);
             
-            ctx.font = `bold ${item.fontSize}px ${font}`;
-            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            const cx = w/2, cy = h/2 + (item.fontSize * 0.05);
-            ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+            cx = w/2; cy = h/2;
+            if(item.type !== 'image') cy += (item.fontSize * 0.05);
 
-            // Draw
+            ctx.lineJoin = 'round'; ctx.lineCap = 'round';
             ctx.clearRect(0,0,w,h);
 
-            if(isSticker) {
+            // Draw
+            if(item.type === 'image') {
+                const img = new Image();
+                img.src = item.src;
+                const radius = item.borderRadius;
+                
+                if(item.hasShadow) {
+                    ctx.shadowColor = 'rgba(0,0,0,0.2)';
+                    ctx.shadowBlur=5; ctx.shadowOffsetX=3; ctx.shadowOffsetY=3;
+                    ctx.fillStyle = 'black';
+                    ctx.roundRect(pad, pad, item.width, item.height, radius);
+                    ctx.fill();
+                    ctx.shadowColor = 'transparent';
+                }
+
+                if(item.hasOuter && strokeW > 0) {
+                     ctx.lineWidth = strokeW;
+                     ctx.strokeStyle = item.strokeColor;
+                     ctx.beginPath();
+                     ctx.roundRect(pad - strokeW/2, pad - strokeW/2, item.width + strokeW, item.height + strokeW, radius + strokeW/2);
+                     ctx.stroke();
+                }
+
+                ctx.beginPath();
+                ctx.roundRect(pad, pad, item.width, item.height, radius);
+                ctx.save();
+                ctx.clip();
+                ctx.drawImage(img, pad, pad, item.width, item.height);
+                ctx.restore();
+            }
+            else if(item.type === 'sticker') {
                 if(item.hasShadow) {
                     ctx.shadowColor = 'rgba(0,0,0,0.2)';
                     ctx.shadowBlur = 5; ctx.shadowOffsetX = 3; ctx.shadowOffsetY = 3;
                 }
+                const font = "sans-serif";
+                ctx.font = `bold ${item.fontSize}px ${font}`;
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
                 ctx.fillText(item.text, cx, cy);
-            } else {
+            } 
+            else {
+                const font = item.fontFamily;
+                ctx.font = `bold ${item.fontSize}px ${font}`;
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+
                 if(item.hasShadow) {
                     ctx.shadowColor = 'rgba(0,0,0,0.2)';
                     ctx.shadowBlur = 5; ctx.shadowOffsetX = 3; ctx.shadowOffsetY = 3;
@@ -553,6 +645,11 @@
             } else if(type === 'resize') {
                 const dist = Math.hypot(pt.x - dragInfo.cx, pt.y - dragInfo.cy);
                 item.scale = Math.max(0.2, dragInfo.startScale * (dist / dragInfo.startDist));
+                // 实时更新缩放值
+                if(item.type === 'image') {
+                    const pct = Math.round(item.scale * 100);
+                    syncVal('size', pct + '%', pct);
+                }
             }
             drawItemCanvas(item);
         }
@@ -589,7 +686,6 @@
                 document.getElementById(id).classList.add('active');
                 const item = items.find(i => i.id === id);
                 syncDrawer(item);
-                // 选中时不自动打开抽屉，等待用户点击
             } else {
                 closeDrawer();
             }
@@ -608,56 +704,84 @@
         function switchTab(tab) {
             if(!activeId) return;
             const btn = document.getElementById('nav-'+tab);
-            
-            // 核心修复：Toggle 逻辑 (如果已激活，则关闭)
-            if(btn.classList.contains('active')) {
-                closeDrawer();
-                return;
-            }
-
+            if(btn.classList.contains('active')) { closeDrawer(); return; }
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             btn.classList.add('active');
-            
             openDrawer('main-drawer');
             document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
             document.getElementById('tab-'+tab).classList.remove('hidden');
-            
-            const titles = { style:'外观样式', adjust:'细节参数', tools:'工具箱' };
-            document.getElementById('drawer-title').innerText = titles[tab];
         }
 
         function syncDrawer(item) {
-            const isSticker = item.type === 'sticker';
+            const isText = item.type === 'text';
+            const isImg = item.type === 'image';
             
-            // 显隐
-            const stickerHide = ['text-input-group', 'wrap-stroke', 'wrap-outer', 'row-stroke', 'font-group'];
-            stickerHide.forEach(id => {
-                const el = document.getElementById(id);
-                if(el) el.style.display = isSticker ? 'none' : (id.includes('wrap') ? 'flex' : 'flex');
-                if(id === 'text-input-group' && el) el.style.display = isSticker ? 'none' : 'block';
-            });
+            const els = {
+                textGroup: document.getElementById('text-input-group'),
+                palette: document.getElementById('palette-group'),
+                fillColor: document.getElementById('wrap-fill'),
+                strokeColor: document.getElementById('wrap-stroke'),
+                outerColor: document.getElementById('wrap-outer'),
+                fontGroup: document.getElementById('font-group'),
+                rowRadius: document.getElementById('row-radius'),
+                rowStroke: document.getElementById('row-stroke'),
+                lblSize: document.getElementById('lbl-size'),
+                lblWidth: document.getElementById('lbl-width'),
+                lblStroke: document.getElementById('lbl-stroke'),
+                optOuter: document.getElementById('opt-outer'),
+                txtOuter: document.getElementById('txt-outer')
+            };
 
-            // 值
-            syncVal('text', item.text, item.text);
-            syncVal('size', item.fontSize, item.fontSize);
+            els.textGroup.style.display = isText ? 'block' : 'none';
+            els.palette.style.display = isText ? 'block' : 'none';
+            els.fontGroup.style.display = isText ? 'flex' : 'none';
+            els.rowRadius.style.display = isImg ? 'flex' : 'none';
+            
+            els.lblSize.innerText = isImg ? '缩放' : '字号';
+            els.lblWidth.innerText = isImg ? '边框' : '厚度';
+            els.lblStroke.innerText = isImg ? '边框' : '云朵';
+            els.txtOuter.innerText = isImg ? '显示边框' : '轮廓描边';
+
+            els.fillColor.style.visibility = isText ? 'visible' : 'hidden';
+            els.outerColor.style.visibility = isText ? 'visible' : 'hidden';
+            els.strokeColor.style.visibility = (isText || isImg) ? 'visible' : 'hidden'; 
+
+            syncVal('text', item.text);
+            
+            if (isImg) {
+                const s = Math.round(item.scale * 100);
+                syncVal('size', s + '%', s);
+                const slider = document.getElementById('inp-size');
+                slider.min = 10; slider.max = 300;
+            } else {
+                syncVal('size', item.fontSize, item.fontSize);
+                const slider = document.getElementById('inp-size');
+                slider.min = 20; slider.max = 250;
+            }
+
+            syncVal('width', item.strokeWidth, item.strokeWidth);
             syncVal('rot', Math.round(item.rotation) + '°', item.rotation);
             syncVal('op', item.opacity, item.opacity);
             
-            if(!isSticker) {
-                syncVal('stroke', item.strokeWidth, item.strokeWidth);
+            if(isImg) syncVal('radius', item.borderRadius, item.borderRadius);
+
+            if(isText) {
                 syncColor('fill', item.fillColor);
                 syncColor('stroke', item.strokeColor);
                 syncColor('outer', item.outerColor);
-                document.getElementById('chk-outer').checked = item.hasOuter;
-                document.getElementById('chk-shadow').checked = item.hasShadow;
+            } else if(isImg) {
+                syncColor('stroke', item.strokeColor);
             }
+
+            document.getElementById('chk-outer').checked = item.hasOuter;
+            document.getElementById('chk-shadow').checked = item.hasShadow;
         }
 
         function syncVal(key, text, val) {
             const inp = document.getElementById('inp-'+key);
             const span = document.getElementById('val-'+key);
-            if(inp) inp.value = val;
-            if(span) span.innerText = text;
+            if(inp && val !== undefined) inp.value = val;
+            if(span && text !== undefined) span.innerText = text;
         }
         function syncColor(key, val) {
             document.getElementById('inp-'+key).value = val;
@@ -673,7 +797,6 @@
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
         }
 
-        // --- 更新 ---
         function updateItem(key, val) {
             if(!activeId) return;
             const item = items.find(i => i.id === activeId);
@@ -681,31 +804,45 @@
             drawItemCanvas(item);
             
             if(key === 'fontSize') document.getElementById('val-size').innerText = val;
-            if(key === 'strokeWidth') document.getElementById('val-stroke').innerText = val;
+            if(key === 'strokeWidth') document.getElementById('val-width').innerText = val;
             if(key === 'rotation') document.getElementById('val-rot').innerText = val + '°';
             if(key === 'opacity') document.getElementById('val-op').innerText = val;
+            if(key === 'borderRadius') document.getElementById('val-radius').innerText = val;
+            
             if(key.includes('Color')) {
-                const type = key.replace('Color','');
-                document.getElementById('well-'+type).style.background = val;
+                const type = key.replace('Color','').replace('stroke','stroke'); 
+                const well = document.getElementById('well-'+type.replace('Color','').toLowerCase());
+                if(well) well.style.background = val;
+                if(key === 'strokeColor' && item.type === 'image') document.getElementById('well-stroke').style.background = val;
             }
         }
 
-        // Bindings
         document.getElementById('inp-text').oninput = e => updateItem('text', e.target.value);
-        document.getElementById('inp-size').oninput = e => updateItem('fontSize', parseInt(e.target.value));
-        document.getElementById('inp-stroke').oninput = e => updateItem('strokeWidth', parseInt(e.target.value));
+        document.getElementById('inp-size').oninput = e => {
+            const val = parseInt(e.target.value);
+            if(!activeId) return;
+            const item = items.find(i => i.id === activeId);
+            if(item.type === 'image') {
+                item.scale = val / 100;
+                document.getElementById('val-size').innerText = val + '%';
+                drawItemCanvas(item);
+            } else {
+                updateItem('fontSize', val);
+            }
+        };
+        document.getElementById('inp-width').oninput = e => updateItem('strokeWidth', parseInt(e.target.value));
+        document.getElementById('inp-radius').oninput = e => updateItem('borderRadius', parseInt(e.target.value));
         document.getElementById('inp-rot').oninput = e => updateItem('rotation', parseInt(e.target.value));
         document.getElementById('inp-op').oninput = e => updateItem('opacity', parseInt(e.target.value));
         
         ['fill','stroke','outer'].forEach(k => {
             document.getElementById('inp-'+k).oninput = e => updateItem(k+'Color', e.target.value);
         });
-        
+
         document.getElementById('chk-outer').onchange = e => updateItem('hasOuter', e.target.checked);
         document.getElementById('chk-shadow').onchange = e => updateItem('hasShadow', e.target.checked);
         document.getElementById('inp-font').onchange = e => updateItem('fontFamily', e.target.value);
 
-        // Tools
         function modifyLayer(action) {
             if(!activeId) return;
             const item = items.find(i => i.id === activeId);
@@ -714,8 +851,6 @@
             if(action === 'up') item.zIndex++;
             if(action === 'down') item.zIndex--;
             drawItemCanvas(item);
-            // 保持选中，但关闭抽屉以便观察
-            closeDrawer();
         }
         function duplicateItem() {
             if(!activeId) return;
@@ -723,6 +858,7 @@
             const copy = JSON.parse(JSON.stringify(src));
             copy.id = 'item-' + Date.now();
             copy.x += 30; copy.y += 30; copy.zIndex = zIndexCounter++;
+            if(copy.type === 'image') { /* image needs special handling? No, src string is fine */ }
             items.push(copy);
             renderItemDOM(copy);
             setActiveItem(copy.id);
@@ -758,7 +894,6 @@
                 list.appendChild(div);
             });
         }
-
         function filterStickers(cat) {
             const list = document.getElementById('sticker-list');
             list.innerHTML = '';
@@ -771,10 +906,9 @@
             });
         }
 
-        // --- Export ---
         async function exportImage() {
             deselect(); closeDrawer();
-            await new Promise(r => setTimeout(r, 100)); // UI settle
+            await new Promise(r => setTimeout(r, 100));
             
             const container = document.getElementById('canvas-container');
             const w = container.offsetWidth;
@@ -791,44 +925,79 @@
             const sorted = [...items].sort((a,b) => a.zIndex - b.zIndex);
             
             for(const item of sorted) {
-                // Re-calculate layout logic
-                const isSticker = item.type === 'sticker';
-                const font = isSticker ? "sans-serif" : item.fontFamily;
-                ctx.font = `bold ${item.fontSize}px ${font}`;
-                const metrics = ctx.measureText(item.text);
-                const wText = metrics.width;
-                const hText = item.fontSize * 1.2;
-                const strokeW = parseInt(item.strokeWidth || 0);
-                const pad = strokeW + 20;
-                const iw = Math.ceil(wText + pad * 2);
-                const ih = Math.ceil(hText + pad * 2);
+                ctx.save();
+                let iw, ih, fontSize=item.fontSize, pad;
                 
+                if(item.type === 'image') {
+                    const strokeW = parseInt(item.strokeWidth || 0);
+                    pad = strokeW + 20;
+                    iw = item.width + pad*2;
+                    ih = item.height + pad*2;
+                } else {
+                    const font = item.type==='sticker' ? 'sans-serif' : item.fontFamily;
+                    ctx.font = `bold ${item.fontSize}px ${font}`;
+                    const metrics = ctx.measureText(item.text);
+                    const strokeW = parseInt(item.strokeWidth || 0);
+                    pad = strokeW + 20;
+                    iw = Math.ceil(metrics.width + pad * 2);
+                    ih = Math.ceil((item.fontSize * 1.2) + pad * 2);
+                }
+
                 const finalW = iw * item.scale;
                 const finalH = ih * item.scale;
-                const cx = item.x + finalW / 2;
-                const cy = item.y + finalH / 2;
+                const cx = item.x + finalW/2;
+                const cy = item.y + finalH/2;
 
-                ctx.save();
                 ctx.translate(cx, cy);
                 ctx.rotate(item.rotation * Math.PI / 180);
                 ctx.scale(item.scale, item.scale);
                 ctx.globalAlpha = item.opacity / 100;
                 ctx.translate(-iw/2, -ih/2);
 
-                const dcx = iw/2, dcy = ih/2 + (item.fontSize * 0.05);
-                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-
-                if(isSticker) {
-                    if(item.hasShadow) { ctx.shadowColor='rgba(0,0,0,0.2)'; ctx.shadowBlur=5; ctx.shadowOffsetX=3; ctx.shadowOffsetY=3; }
-                    ctx.fillText(item.text, dcx, dcy);
+                if(item.type === 'image') {
+                    const img = new Image();
+                    img.src = item.src;
+                    await new Promise(r => { if(img.complete) r(); else img.onload = r; });
+                    const radius = item.borderRadius;
+                    const strokeW = item.strokeWidth;
+                    
+                    if(item.hasShadow) {
+                        ctx.shadowColor = 'rgba(0,0,0,0.2)';
+                        ctx.shadowBlur=5; ctx.shadowOffsetX=3; ctx.shadowOffsetY=3;
+                        ctx.fillStyle = 'black';
+                        ctx.roundRect(pad, pad, item.width, item.height, radius);
+                        ctx.fill();
+                        ctx.shadowColor = 'transparent';
+                    }
+                    if(item.hasOuter && strokeW > 0) {
+                         ctx.lineWidth = strokeW;
+                         ctx.strokeStyle = item.strokeColor;
+                         ctx.beginPath();
+                         ctx.roundRect(pad - strokeW/2, pad - strokeW/2, item.width + strokeW, item.height + strokeW, radius + strokeW/2);
+                         ctx.stroke();
+                    }
+                    ctx.beginPath();
+                    ctx.roundRect(pad, pad, item.width, item.height, radius);
+                    ctx.clip();
+                    ctx.drawImage(img, pad, pad, item.width, item.height);
                 } else {
-                    if(item.hasShadow) { ctx.shadowColor='rgba(0,0,0,0.2)'; ctx.shadowBlur=5; ctx.shadowOffsetX=3; ctx.shadowOffsetY=3; }
-                    if(item.hasOuter) { ctx.lineWidth=strokeW+12; ctx.strokeStyle=item.outerColor; ctx.strokeText(item.text, dcx, dcy); ctx.shadowColor='transparent'; }
-                    if(!item.hasOuter) ctx.shadowColor='transparent';
-                    ctx.lineWidth=strokeW; ctx.strokeStyle=item.strokeColor; ctx.strokeText(item.text, dcx, dcy);
-                    ctx.fillStyle=item.strokeColor; ctx.fillText(item.text, dcx, dcy);
-                    ctx.fillStyle=item.fillColor; ctx.fillText(item.text, dcx, dcy);
+                    const drawCx = iw/2;
+                    const drawCy = ih/2 + (item.fontSize * 0.05); 
+                    const strokeW = parseInt(item.strokeWidth || 0);
+                    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+
+                    if(item.type === 'sticker') {
+                        if(item.hasShadow) { ctx.shadowColor='rgba(0,0,0,0.2)'; ctx.shadowBlur=5; ctx.shadowOffsetX=3; ctx.shadowOffsetY=3; }
+                        ctx.fillText(item.text, drawCx, drawCy);
+                    } else {
+                         if(item.hasShadow) { ctx.shadowColor='rgba(0,0,0,0.2)'; ctx.shadowBlur=5; ctx.shadowOffsetX=3; ctx.shadowOffsetY=3; }
+                        if(item.hasOuter) { ctx.lineWidth=strokeW+12; ctx.strokeStyle=item.outerColor; ctx.strokeText(item.text, drawCx, drawCy); ctx.shadowColor='transparent'; }
+                        if(!item.hasOuter) ctx.shadowColor='transparent';
+                        ctx.lineWidth=strokeW; ctx.strokeStyle=item.strokeColor; ctx.strokeText(item.text, drawCx, drawCy);
+                        ctx.fillStyle=item.strokeColor; ctx.fillText(item.text, drawCx, drawCy);
+                        ctx.fillStyle=item.fillColor; ctx.fillText(item.text, drawCx, drawCy);
+                    }
                 }
                 ctx.restore();
             }
