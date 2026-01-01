@@ -103,6 +103,8 @@
         }
         .top-btn:active { transform: scale(0.95); background: #dbeafe; }
         .top-btn.save { background: #3b82f6; color: white; margin-left: auto; }
+        .top-btn.undo { background: #f3f4f6; color: #64748b; font-size: 14px; padding: 8px; border-radius: 50%; width: 36px; height: 36px; justify-content: center; margin-left: 4px; }
+        .top-btn.undo:active { background: #e2e8f0; color: #3b82f6; }
         .top-btn.sticker { background: #fff7ed; color: #f59e0b; }
         .top-btn.image { background: #f0fdf4; color: #16a34a; }
 
@@ -159,7 +161,7 @@
 
     <!-- 1. 顶部栏 -->
     <header id="app-header">
-        <div class="flex gap-2 overflow-x-auto hide-scrollbar">
+        <div class="flex gap-2 overflow-x-auto hide-scrollbar items-center">
             <button onclick="addCloudText()" class="top-btn">
                 <i class="fa-solid fa-font"></i> 文字
             </button>
@@ -170,9 +172,15 @@
                 <i class="fa-regular fa-image"></i> 图片
             </button>
         </div>
-        <button onclick="exportImage()" class="top-btn save flex-shrink-0">
-            <i class="fa-solid fa-download"></i> 保存
-        </button>
+        <div class="flex items-center gap-2">
+            <!-- 撤销按钮 -->
+            <button onclick="undo()" class="top-btn undo" title="撤销">
+                <i class="fa-solid fa-rotate-left"></i>
+            </button>
+            <button onclick="exportImage()" class="top-btn save flex-shrink-0">
+                <i class="fa-solid fa-download"></i> 保存
+            </button>
+        </div>
     </header>
 
     <!-- 2. 画布区域 -->
@@ -214,7 +222,7 @@
             <div id="tab-style" class="tab-content hidden">
                 <div id="text-input-group" class="mb-4">
                     <label class="text-xs text-gray-400 font-bold mb-1 block">内容</label>
-                    <input type="text" id="inp-text" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm">
+                    <input type="text" id="inp-text" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm" onchange="saveState()">
                 </div>
                 
                 <div class="mb-4" id="palette-group">
@@ -227,19 +235,19 @@
                     <div class="flex justify-around bg-gray-50 p-2 rounded-xl border border-gray-100">
                         <div class="flex flex-col items-center gap-1" id="wrap-fill">
                             <div class="color-well" style="background:#3b82f6" id="well-fill">
-                                <input type="color" id="inp-fill">
+                                <input type="color" id="inp-fill" onchange="saveState()">
                             </div>
                             <span class="text-[10px] text-gray-500">字色</span>
                         </div>
                         <div class="flex flex-col items-center gap-1" id="wrap-stroke">
                             <div class="color-well" style="background:#ffffff" id="well-stroke">
-                                <input type="color" id="inp-stroke">
+                                <input type="color" id="inp-stroke" onchange="saveState()">
                             </div>
                             <span class="text-[10px] text-gray-500" id="lbl-stroke">云朵</span>
                         </div>
                         <div class="flex flex-col items-center gap-1" id="wrap-outer">
                             <div class="color-well" style="background:#93c5fd" id="well-outer">
-                                <input type="color" id="inp-outer">
+                                <input type="color" id="inp-outer" onchange="saveState()">
                             </div>
                             <span class="text-[10px] text-gray-500">轮廓</span>
                         </div>
@@ -251,7 +259,7 @@
             <div id="tab-adjust" class="tab-content hidden">
                 <div class="flex items-center justify-between bg-gray-50 p-2 rounded-lg mb-4 border border-gray-100" id="font-group">
                     <span class="text-xs font-bold text-gray-600">字体样式</span>
-                    <select id="inp-font" class="bg-white border border-gray-200 text-xs rounded px-2 py-1 outline-none text-gray-600 w-32">
+                    <select id="inp-font" class="bg-white border border-gray-200 text-xs rounded px-2 py-1 outline-none text-gray-600 w-32" onchange="saveState()">
                         <option value="'Fredoka One', cursive">Fredoka One</option>
                         <option value="'Zcool KuaiLe', cursive">站酷快乐体</option>
                         <option value="'Pacifico', cursive">Pacifico</option>
@@ -262,40 +270,40 @@
 
                 <div class="prop-row">
                     <span class="prop-label" id="lbl-size">字号</span>
-                    <input type="range" id="inp-size" min="20" max="300">
+                    <input type="range" id="inp-size" min="20" max="300" onchange="saveState()">
                     <span class="prop-val" id="val-size">80</span>
                 </div>
                 
                 <div class="prop-row" id="row-width">
                     <span class="prop-label" id="lbl-width">厚度</span>
-                    <input type="range" id="inp-width" min="0" max="80">
+                    <input type="range" id="inp-width" min="0" max="80" onchange="saveState()">
                     <span class="prop-val" id="val-width">20</span>
                 </div>
                 
                 <div class="prop-row hidden" id="row-radius">
                     <span class="prop-label">圆角</span>
-                    <input type="range" id="inp-radius" min="0" max="50">
+                    <input type="range" id="inp-radius" min="0" max="50" onchange="saveState()">
                     <span class="prop-val" id="val-radius">15</span>
                 </div>
 
                 <div class="prop-row">
                     <span class="prop-label">旋转</span>
-                    <input type="range" id="inp-rot" min="-180" max="180">
+                    <input type="range" id="inp-rot" min="-180" max="180" onchange="saveState()">
                     <span class="prop-val" id="val-rot">0°</span>
                 </div>
                 <div class="prop-row">
                     <span class="prop-label">透明</span>
-                    <input type="range" id="inp-op" min="0" max="100">
+                    <input type="range" id="inp-op" min="0" max="100" onchange="saveState()">
                     <span class="prop-val" id="val-op">100</span>
                 </div>
 
                 <div class="flex gap-4 pt-2">
                     <label class="flex items-center gap-2 text-xs font-bold text-gray-600" id="opt-outer">
-                        <input type="checkbox" id="chk-outer" class="accent-blue-500 w-4 h-4"> 
+                        <input type="checkbox" id="chk-outer" class="accent-blue-500 w-4 h-4" onchange="saveState()"> 
                         <span id="txt-outer">轮廓描边</span>
                     </label>
                     <label class="flex items-center gap-2 text-xs font-bold text-gray-600">
-                        <input type="checkbox" id="chk-shadow" class="accent-blue-500 w-4 h-4"> 投影
+                        <input type="checkbox" id="chk-shadow" class="accent-blue-500 w-4 h-4" onchange="saveState()"> 投影
                     </label>
                 </div>
             </div>
@@ -343,6 +351,10 @@
         let activeId = null;
         let zIndexCounter = 100;
         let isAutoFit = true;
+        
+        // 历史记录栈
+        let historyStack = [];
+        const MAX_HISTORY = 10;
 
         const palettes = [
             { fill: '#ffecd2', stroke: '#ffffff', outer: '#ff9a9e' },
@@ -366,7 +378,19 @@
             initCanvasSize();
             filterStickers('face');
             initPalettes();
-            setTimeout(() => addCloudText(), 100);
+            setTimeout(() => {
+                // 初始化时不记录历史，直接添加
+                const id = 'item-' + Date.now();
+                const item = {
+                    id, type: 'text', x: 80, y: 100, scale: 1, rotation: 0, opacity: 100, zIndex: zIndexCounter++,
+                    text: 'Tim', fontFamily: "'Fredoka One', cursive", fontSize: 80,
+                    fillColor: '#3b82f6', strokeColor: '#ffffff', strokeWidth: 20,
+                    hasOuter: true, outerColor: '#93c5fd', hasShadow: false
+                };
+                items.push(item);
+                renderItemDOM(item);
+                setActiveItem(id);
+            }, 100);
             updateNavState();
         };
 
@@ -382,11 +406,44 @@
             container.style.height = size + 'px';
         }
 
+        // --- 历史记录系统 ---
+        function saveState() {
+            // 深拷贝当前 items 状态
+            const state = JSON.stringify(items);
+            // 如果栈满了，移除最早的
+            if (historyStack.length >= MAX_HISTORY) {
+                historyStack.shift();
+            }
+            historyStack.push(state);
+        }
+
+        function undo() {
+            if (historyStack.length === 0) return;
+            // 恢复上一个状态
+            const prevState = historyStack.pop();
+            items = JSON.parse(prevState);
+            
+            // 清空画布并重新渲染
+            document.getElementById('item-layer').innerHTML = '';
+            // 重置选区
+            setActiveItem(null);
+            closeDrawer();
+            
+            // 重新渲染所有元素
+            items.forEach(item => {
+                renderItemDOM(item);
+                // 确保 zIndex 计数器正确
+                if(item.zIndex >= zIndexCounter) zIndexCounter = item.zIndex + 1;
+            });
+        }
+
         // --- 核心操作 ---
         function addCloudText() {
+            saveState(); // 操作前保存
             createItem('text', 'Tim');
         }
         function addSticker(s) {
+            saveState();
             createItem('sticker', s);
             closeDrawer();
         }
@@ -397,7 +454,7 @@
             reader.onload = (evt) => {
                 const img = new Image();
                 img.onload = () => {
-                    // Smart resizing
+                    saveState();
                     let w = img.width, h = img.height;
                     const max = 250;
                     if(w > h && w > max) { h *= max/w; w = max; }
@@ -605,6 +662,7 @@
         function startDrag(e, item) {
             if(e.target.className.includes('handle')) return;
             e.preventDefault(); e.stopPropagation();
+            saveState(); // 记录开始前的状态
             setActiveItem(item.id);
             const pt = getPt(e);
             dragInfo = { type: 'move', item, startX: pt.x, startY: pt.y, initX: item.x, initY: item.y };
@@ -613,13 +671,15 @@
 
         function startRotate(e, item) {
             e.preventDefault(); e.stopPropagation();
+            saveState(); // 记录
             const rect = document.getElementById(item.id).getBoundingClientRect();
             dragInfo = { type: 'rotate', item, cx: rect.left + rect.width/2, cy: rect.top + rect.height/2 };
             bindEvents();
         }
 
         function startResize(e, item) {
-            e.stopPropagation(); e.preventDefault();
+            e.preventDefault(); e.stopPropagation();
+            saveState(); // 记录
             const pt = getPt(e);
             const rect = document.getElementById(item.id).getBoundingClientRect();
             const cx = rect.left + rect.width/2;
@@ -853,14 +913,21 @@
         
         ['fill','stroke','outer'].forEach(k => {
             document.getElementById('inp-'+k).oninput = e => updateItem(k+'Color', e.target.value);
+            document.getElementById('inp-'+k).onchange = saveState; // 颜色选完保存
         });
 
-        document.getElementById('chk-outer').onchange = e => updateItem('hasOuter', e.target.checked);
-        document.getElementById('chk-shadow').onchange = e => updateItem('hasShadow', e.target.checked);
-        document.getElementById('inp-font').onchange = e => updateItem('fontFamily', e.target.value);
+        // 绑定 onchange 到其他 inputs 以保存状态
+        ['text','size','width','radius','rot','op'].forEach(id => {
+            document.getElementById('inp-'+id).onchange = saveState;
+        });
+
+        document.getElementById('chk-outer').onchange = e => { updateItem('hasOuter', e.target.checked); saveState(); };
+        document.getElementById('chk-shadow').onchange = e => { updateItem('hasShadow', e.target.checked); saveState(); };
+        document.getElementById('inp-font').onchange = e => { updateItem('fontFamily', e.target.value); saveState(); };
 
         function modifyLayer(action) {
             if(!activeId) return;
+            saveState();
             const item = items.find(i => i.id === activeId);
             if(action === 'top') item.zIndex = zIndexCounter++;
             if(action === 'bottom') item.zIndex = 1;
@@ -870,6 +937,7 @@
         }
         function duplicateItem() {
             if(!activeId) return;
+            saveState();
             const src = items.find(i => i.id === activeId);
             const copy = JSON.parse(JSON.stringify(src));
             copy.id = 'item-' + Date.now();
@@ -881,6 +949,7 @@
         }
         function deleteActiveItem() {
             if(!activeId) return;
+            saveState();
             document.getElementById(activeId).remove();
             items = items.filter(i => i.id !== activeId);
             deselect(); closeDrawer();
@@ -902,6 +971,7 @@
                 div.style.background = `conic-gradient(${p.outer} 0% 33%, ${p.stroke} 33% 66%, ${p.fill} 66% 100%)`;
                 div.onclick = () => {
                     if(!activeId) return;
+                    saveState();
                     updateItem('fillColor', p.fill);
                     updateItem('strokeColor', p.stroke);
                     updateItem('outerColor', p.outer);
