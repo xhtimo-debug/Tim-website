@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>云朵字生成器</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <!-- 引入字体 -->
     <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Zcool+KuaiLe&family=Pacifico&family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@400;700&family=Nunito:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -73,9 +73,8 @@
             position: absolute;
             left: 0; right: 0;
             bottom: var(--nav-h); 
-            height: 35vh; 
-            min-height: 280px; 
-            max-height: 400px;
+            height: auto;
+            max-height: 40vh; /* 限制高度，防止遮挡 */
             background: white;
             border-radius: 20px 20px 0 0;
             box-shadow: 0 -4px 20px rgba(0,0,0,0.05);
@@ -104,7 +103,6 @@
         .top-btn:active { transform: scale(0.95); background: #dbeafe; }
         .top-btn.save { background: #3b82f6; color: white; margin-left: auto; }
         .top-btn.undo { background: #f3f4f6; color: #64748b; font-size: 14px; padding: 8px; border-radius: 50%; width: 36px; height: 36px; justify-content: center; margin-left: 4px; }
-        .top-btn.undo:active { background: #e2e8f0; color: #3b82f6; }
         .top-btn.sticker { background: #fff7ed; color: #f59e0b; }
         .top-btn.image { background: #f0fdf4; color: #16a34a; }
 
@@ -145,7 +143,7 @@
         
         .prop-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
         .prop-label { width: 50px; font-size: 11px; font-weight: bold; color: #64748b; }
-        .prop-val { width: 30px; font-size: 11px; font-family: monospace; color: #3b82f6; text-align: right; }
+        .prop-val { width: 35px; font-size: 11px; font-family: monospace; color: #3b82f6; text-align: right; }
         
         input[type="range"] { flex: 1; height: 6px; background: #e2e8f0; border-radius: 3px; outline: none; -webkit-appearance: none; }
         input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; background: white; border: 2px solid #3b82f6; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
@@ -156,7 +154,6 @@
 </head>
 <body>
 
-    <!-- 隐藏的文件上传 Input -->
     <input type="file" id="file-input" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
 
     <!-- 1. 顶部栏 -->
@@ -173,7 +170,6 @@
             </button>
         </div>
         <div class="flex items-center gap-2">
-            <!-- 撤销按钮 -->
             <button onclick="undo()" class="top-btn undo" title="撤销">
                 <i class="fa-solid fa-rotate-left"></i>
             </button>
@@ -352,7 +348,6 @@
         let zIndexCounter = 100;
         let isAutoFit = true;
         
-        // 历史记录栈
         let historyStack = [];
         const MAX_HISTORY = 10;
 
@@ -379,7 +374,6 @@
             filterStickers('face');
             initPalettes();
             setTimeout(() => {
-                // 初始化时不记录历史，直接添加
                 const id = 'item-' + Date.now();
                 const item = {
                     id, type: 'text', x: 80, y: 100, scale: 1, rotation: 0, opacity: 100, zIndex: zIndexCounter++,
@@ -406,40 +400,29 @@
             container.style.height = size + 'px';
         }
 
-        // --- 历史记录系统 ---
+        // --- 历史记录 ---
         function saveState() {
-            // 深拷贝当前 items 状态
             const state = JSON.stringify(items);
-            // 如果栈满了，移除最早的
-            if (historyStack.length >= MAX_HISTORY) {
-                historyStack.shift();
-            }
+            if (historyStack.length >= MAX_HISTORY) historyStack.shift();
             historyStack.push(state);
         }
 
         function undo() {
             if (historyStack.length === 0) return;
-            // 恢复上一个状态
             const prevState = historyStack.pop();
             items = JSON.parse(prevState);
-            
-            // 清空画布并重新渲染
             document.getElementById('item-layer').innerHTML = '';
-            // 重置选区
             setActiveItem(null);
             closeDrawer();
-            
-            // 重新渲染所有元素
             items.forEach(item => {
                 renderItemDOM(item);
-                // 确保 zIndex 计数器正确
                 if(item.zIndex >= zIndexCounter) zIndexCounter = item.zIndex + 1;
             });
         }
 
-        // --- 核心操作 ---
+        // --- Core ---
         function addCloudText() {
-            saveState(); // 操作前保存
+            saveState();
             createItem('text', 'Tim');
         }
         function addSticker(s) {
@@ -464,7 +447,7 @@
                 img.src = evt.target.result;
             };
             reader.readAsDataURL(file);
-            e.target.value = ''; // reset
+            e.target.value = '';
         }
 
         function createItem(type, content, w, h) {
@@ -475,7 +458,6 @@
                 y: 100 + (items.length * 5) % 50,
                 scale: 1, rotation: 0, opacity: 100, zIndex: zIndexCounter++,
                 hasShadow: false,
-                // Default props
                 strokeWidth: 0, strokeColor: '#ffffff',
                 fillColor: 'transparent', outerColor: '#93c5fd',
                 borderRadius: 15,
@@ -497,7 +479,7 @@
                 base.width = w; base.height = h;
                 base.strokeWidth = 10;
                 base.strokeColor = '#ffffff';
-                base.hasOuter = true; // Image border
+                base.hasOuter = true;
             }
 
             items.push(base);
@@ -507,7 +489,6 @@
             else switchTab('adjust');
         }
 
-        // --- 渲染 ---
         function renderItemDOM(item) {
             const el = document.createElement('div');
             el.id = item.id;
@@ -517,19 +498,15 @@
             const canvas = document.createElement('canvas');
             el.appendChild(canvas);
 
-            // Controls
             const btn = (cls, icon) => `<div class="handle-btn ${cls}"><i class="fa-solid ${icon}"></i></div>`;
             el.innerHTML += btn('delete-handle', 'fa-xmark') + btn('rotate-handle', 'fa-rotate') + btn('resize-handle', 'fa-expand');
 
-            // Events
             const delBtn = el.querySelector('.delete-handle');
             delBtn.ontouchstart = (e) => { e.stopPropagation(); deleteActiveItem(); };
             delBtn.onmousedown = (e) => { e.stopPropagation(); deleteActiveItem(); }; 
-
             const rotBtn = el.querySelector('.rotate-handle');
             rotBtn.ontouchstart = (e) => startRotate(e, item);
             rotBtn.onmousedown = (e) => startRotate(e, item);
-
             const resBtn = el.querySelector('.resize-handle');
             resBtn.ontouchstart = (e) => startResize(e, item);
             resBtn.onmousedown = (e) => startResize(e, item);
@@ -596,7 +573,6 @@
                     ctx.fill();
                     ctx.shadowColor = 'transparent';
                 }
-
                 if(item.hasOuter && strokeW > 0) {
                      ctx.lineWidth = strokeW;
                      ctx.strokeStyle = item.strokeColor;
@@ -604,7 +580,6 @@
                      ctx.roundRect(pad - strokeW/2, pad - strokeW/2, item.width + strokeW, item.height + strokeW, radius + strokeW/2);
                      ctx.stroke();
                 }
-
                 ctx.beginPath();
                 ctx.roundRect(pad, pad, item.width, item.height, radius);
                 ctx.save();
@@ -662,7 +637,7 @@
         function startDrag(e, item) {
             if(e.target.className.includes('handle')) return;
             e.preventDefault(); e.stopPropagation();
-            saveState(); // 记录开始前的状态
+            saveState();
             setActiveItem(item.id);
             const pt = getPt(e);
             dragInfo = { type: 'move', item, startX: pt.x, startY: pt.y, initX: item.x, initY: item.y };
@@ -671,7 +646,7 @@
 
         function startRotate(e, item) {
             e.preventDefault(); e.stopPropagation();
-            saveState(); // 记录
+            saveState();
             const rect = document.getElementById(item.id).getBoundingClientRect();
             dragInfo = { type: 'rotate', item, cx: rect.left + rect.width/2, cy: rect.top + rect.height/2 };
             bindEvents();
@@ -679,7 +654,7 @@
 
         function startResize(e, item) {
             e.preventDefault(); e.stopPropagation();
-            saveState(); // 记录
+            saveState();
             const pt = getPt(e);
             const rect = document.getElementById(item.id).getBoundingClientRect();
             const cx = rect.left + rect.width/2;
@@ -710,7 +685,6 @@
                     let s = dragInfo.startScale * ratio;
                     s = Math.max(0.1, Math.min(s, 5));
                     item.scale = s;
-                    // Real-time update for scale slider
                     if(activeId === item.id) {
                         const pct = Math.round(s * 100);
                         document.getElementById('val-size').innerText = pct + '%';
@@ -720,7 +694,6 @@
                     let fs = dragInfo.startFontSize * ratio;
                     fs = Math.max(10, Math.min(fs, 300));
                     item.fontSize = Math.round(fs);
-                    // Real-time update for font size slider
                     if(activeId === item.id) {
                         document.getElementById('val-size').innerText = item.fontSize;
                         document.getElementById('inp-size').value = item.fontSize;
@@ -745,7 +718,6 @@
             document.addEventListener('mouseup', onUp);
         }
 
-        // 点击空白取消
         document.getElementById('canvas-wrapper').addEventListener('mousedown', deselect);
         document.getElementById('canvas-wrapper').addEventListener('touchstart', (e) => {
             if(e.target.id === 'canvas-wrapper' || e.target.id === 'canvas-container') deselect();
@@ -913,10 +885,8 @@
         
         ['fill','stroke','outer'].forEach(k => {
             document.getElementById('inp-'+k).oninput = e => updateItem(k+'Color', e.target.value);
-            document.getElementById('inp-'+k).onchange = saveState; // 颜色选完保存
+            document.getElementById('inp-'+k).onchange = saveState;
         });
-
-        // 绑定 onchange 到其他 inputs 以保存状态
         ['text','size','width','radius','rot','op'].forEach(id => {
             document.getElementById('inp-'+id).onchange = saveState;
         });
@@ -992,15 +962,16 @@
             });
         }
 
+        // --- Export (PNG High-Res) ---
         async function exportImage() {
             deselect(); closeDrawer();
-            await new Promise(r => setTimeout(r, 100));
+            await new Promise(r => setTimeout(r, 100)); // UI settle
             
             const container = document.getElementById('canvas-container');
             const w = container.offsetWidth;
             const h = container.offsetHeight;
             const exCanvas = document.createElement('canvas');
-            const dpr = 4;
+            const dpr = 4; // 4x Resolution
             exCanvas.width = w * dpr; exCanvas.height = h * dpr;
             const ctx = exCanvas.getContext('2d');
             
@@ -1011,7 +982,7 @@
             const sorted = [...items].sort((a,b) => a.zIndex - b.zIndex);
             
             for(const item of sorted) {
-                ctx.save();
+                // Re-calculate layout logic identical to drawItemCanvas
                 let iw, ih, fontSize=item.fontSize, pad;
                 
                 if(item.type === 'image') {
@@ -1023,6 +994,8 @@
                     const font = item.type==='sticker' ? 'sans-serif' : item.fontFamily;
                     ctx.font = `bold ${item.fontSize}px ${font}`;
                     const metrics = ctx.measureText(item.text);
+                    const wText = metrics.width;
+                    const hText = item.fontSize * 1.2;
                     const strokeW = parseInt(item.strokeWidth || 0);
                     pad = strokeW + 20;
                     iw = Math.ceil(metrics.width + pad * 2);
@@ -1034,6 +1007,7 @@
                 const cx = item.x + finalW/2;
                 const cy = item.y + finalH/2;
 
+                ctx.save();
                 ctx.translate(cx, cy);
                 ctx.rotate(item.rotation * Math.PI / 180);
                 ctx.scale(item.scale, item.scale);
