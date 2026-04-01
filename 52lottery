@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>五2幸运儿 - 究极版</title>
+<!-- 引入炫酷的礼花特效库 -->
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<style>
+  /* 全局基础设置 */
+  body {
+    margin: 0; padding: 0;
+    height: 100vh; width: 100vw;
+    display: flex; flex-direction: column;
+    justify-content: center; align-items: center;
+    background: radial-gradient(circle at center, #1a1a3a 0%, #05050a 100%);
+    color: #fff;
+    font-family: 'Microsoft YaHei', -apple-system, sans-serif;
+    overflow: hidden;
+  }
+
+  /* 悬浮工具栏 (右上角) */
+  .top-tools {
+    position: absolute; top: 30px; right: 30px;
+    display: flex; gap: 20px; z-index: 20;
+  }
+  .tool-btn {
+    font-size: 1.8rem; cursor: pointer;
+    color: rgba(255, 255, 255, 0.4);
+    transition: all 0.3s ease; user-select: none;
+  }
+  .tool-btn:hover {
+    color: #00e5ff; text-shadow: 0 0 15px #00e5ff; transform: scale(1.1);
+  }
+
+  /* 顶部大标题 */
+  .title {
+    font-size: 3.5rem; font-weight: 300; color: #fff;
+    letter-spacing: 15px; margin-bottom: 2vh;
+    text-shadow: 0 0 20px #00e5ff, 0 0 40px #00e5ff;
+    user-select: none;
+  }
+
+  /* 名字显示区域 */
+  .name-display {
+    font-size: 8vw; font-weight: 900; letter-spacing: 10px;
+    margin: 4vh 0 6vh 0; color: #fff;
+    text-shadow: 0 0 30px #ff007f, 0 0 60px #ff007f; 
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    user-select: none; text-align: center;
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 20px;
+    max-width: 90%; min-height: 15vh; align-items: center;
+  }
+  .name-display.stopped {
+    color: #ffffff; 
+    text-shadow: 0 0 40px #00e5ff, 0 0 80px #00e5ff, 0 0 150px #00e5ff;
+    transform: scale(1.1); 
+  }
+  /* 奖罚反馈闪烁效 */
+  .name-display.reward-flash { text-shadow: 0 0 50px #00ff88, 0 0 100px #00ff88; color: #00ff88; transform: scale(1.2); }
+  .name-display.punish-flash { text-shadow: 0 0 50px #ff3333, 0 0 100px #ff3333; color: #ff3333; transform: scale(1.2); }
+
+  /* 操作按钮 */
+  .btn {
+    padding: 15px 50px; font-size: 1.5rem; font-weight: bold;
+    letter-spacing: 3px; cursor: pointer; color: #fff;
+    background: linear-gradient(45deg, #ff007f, #00e5ff);
+    border: none; border-radius: 60px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+    transition: all 0.2s ease; outline: none; z-index: 10;
+  }
+  .btn:hover { transform: translateY(-5px) scale(1.05); box-shadow: 0 15px 50px rgba(0, 229, 255, 0.6); }
+  .btn:active { transform: translateY(2px) scale(0.98); box-shadow: 0 5px 20px rgba(0, 229, 255, 0.4); }
+
+  /* 快捷键提示 */
+  .hint {
+    margin-top: 15px; font-size: 0.8rem; color: rgba(255,255,255,0.3); letter-spacing: 2px;
+  }
+
+  /* 历史记录及导出区域 */
+  .history-container {
+    margin-top: 3vh; width: 80%; display: flex; flex-direction: column; align-items: center;
+  }
+  .history-record {
+    width: 100%; max-height: 15vh; overflow-y: auto; font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.4); letter-spacing: 1px; line-height: 1.8; text-align: center;
+    scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.2) transparent;
+  }
+  .history-record::-webkit-scrollbar { width: 4px; }
+  .history-record::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+  
+  .export-btn {
+    margin-top: 10px; padding: 5px 15px; font-size: 0.8rem;
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+    color: #ccc; border-radius: 20px; cursor: pointer; transition: 0.3s;
+  }
+  .export-btn:hover { background: rgba(255,255,255,0.2); color: #fff; }
+
+  /* 右下角奖罚按钮 */
+  .action-panel {
+    position: absolute; bottom: 30px; right: 30px;
+    display: flex; gap: 15px; z-index: 20;
+    opacity: 0.3; pointer-events: none; transition: 0.3s;
+  }
+  .action-panel.active { opacity: 1; pointer-events: auto; }
+  
+  .mark-btn {
+    width: 60px; height: 60px; border-radius: 50%; border: none;
+    font-size: 1.5rem; font-weight: bold; color: #fff; cursor: pointer;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5); transition: 0.2s; outline: none;
+  }
+  .mark-btn.reward { background: linear-gradient(135deg, #00b09b, #96c93d); }
+  .mark-btn.reward:hover { box-shadow: 0 0 20px #00ff88; transform: scale(1.1); }
+  .mark-btn.punish { background: linear-gradient(135deg, #ff416c, #ff4b2b); }
+  .mark-btn.punish:hover { box-shadow: 0 0 20px #ff3333; transform: scale(1.1); }
+
+  /* 设置弹窗 */
+  .modal-overlay {
+    display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px); z-index: 100;
+    justify-content: center; align-items: center;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal-content {
+    background: rgba(15, 15, 30, 0.9); border: 1px solid rgba(0, 229, 255, 0.4);
+    box-shadow: 0 0 50px rgba(0, 255, 255, 0.15); border-radius: 20px;
+    padding: 30px; width: 85%; max-width: 500px; text-align: center;
+  }
+  .modal-content h2 { margin-top: 0; color: #00e5ff; letter-spacing: 2px; }
+  .settings-group { margin-bottom: 20px; text-align: left; color: #ddd; font-size: 0.95rem; }
+  .settings-group label { display: flex; align-items: center; gap: 10px; margin-bottom: 10px;}
+  .settings-group input[type="number"] {
+    background: rgba(0,0,0,0.5); border: 1px solid #00e5ff; color: #fff;
+    padding: 5px 10px; border-radius: 5px; width: 60px; outline: none;
+  }
+  .modal-content textarea {
+    width: 100%; box-sizing: border-box; background: rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(255, 0, 127, 0.5); color: #fff; padding: 15px;
+    border-radius: 12px; font-size: 1rem; resize: vertical; outline: none;
+  }
+  .modal-actions { margin-top: 25px; display: flex; gap: 20px; }
+  .modal-btn { flex: 1; padding: 12px 0; border: none; border-radius: 30px; cursor: pointer; font-weight: bold; }
+  .modal-btn.cancel { background: rgba(255, 255, 255, 0.1); color: #fff; }
+  .modal-btn.save { background: linear-gradient(45deg, #ff007f, #00e5ff); color: #fff; }
+
+  @media (max-width: 768px) {
+    .title { font-size: 2.2rem; } .name-display { font-size: 12vw; }
+    .btn { padding: 12px 35px; font-size: 1.2rem; }
+    .action-panel { bottom: 15px; right: 15px; gap: 10px; }
+    .mark-btn { width: 50px; height: 50px; font-size: 1.2rem; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- 悬浮工具栏 -->
+  <div class="top-tools">
+    <div class="tool-btn" onclick="openSettings()" title="设置">⚙️</div>
+  </div>
+
+  <div class="title">五2幸运儿</div>
+  <div class="name-display stopped" id="nameDisplay"><span>准备就绪</span></div>
+  
+  <button class="btn" id="actionBtn" onclick="toggle()">开始点名</button>
+  <div class="hint">支持使用 空格键 / 回车键</div>
+  
+  <!-- 历史记录与导出 -->
+  <div class="history-container">
+    <div class="history-record" id="historyDisplay">尚无记录</div>
+    <button class="export-btn" onclick="exportData()">📥 导出实时记录</button>
+  </div>
+
+  <!-- 右下角奖罚系统 -->
+  <div class="action-panel" id="actionPanel">
+    <button class="mark-btn reward" onclick="applyMark('奖', 'reward-flash')" title="奖励">🏆</button>
+    <button class="mark-btn punish" onclick="applyMark('罚', 'punish-flash')" title="惩罚">⚡</button>
+  </div>
+
+  <!-- 设置弹窗 -->
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal-content">
+      <h2>系统设置</h2>
+      
+      <div class="settings-group">
+        <label>
+          每次抽取人数: 
+          <input type="number" id="drawCountInput" min="1" max="10" value="1">
+        </label>
+        <label>
+          <input type="checkbox" id="allowRepeatInput">
+          允许重复抽中 (抽中的人不会从名单中剔除)
+        </label>
+      </div>
+
+      <div class="settings-group" style="margin-bottom: 10px;">
+        编辑名单 (每行一个或逗号分隔):
+      </div>
+      <textarea id="nameInput" rows="8"></textarea>
+      
+      <div class="modal-actions">
+        <button class="modal-btn cancel" onclick="closeSettings()">取消</button>
+        <button class="modal-btn save" onclick="saveSettings()">保存并重置</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // --- 基础数据与状态 ---
+  const defaultNames = [
+    "崔铭轩", "王夢阳", "刘恺彤", "仇子瞳", "王馨怡", "王明轩", "王宇阳", "韩少博",
+    "钱安然", "崔芷扬", "韩德宇", "蔡梓浩", "王雨洋", "张佳玥", "葛翰璟", "嵇钰轩",
+    "沈心雨", "胡宇凡", "王悦萱", "薛子婷", "顾煜祺", "顾高杨", "张子瑶", "袁欣蕊",
+    "解雅童", "王辰旭", "王雨彤", "周瑞杰", "翟永睿", "王子涵", "征诺恩", "许若欣",
+    "周晨宇", "魏冯薃", "杨皓然", "赵思涵", "顾鹏毅", "侯铭轩", "杨若萱", "董馨妍",
+    "张俊弛", "瞿子骏"
+  ];
+
+  let initialNames = [];
+  let availableNames = [];
+  let historyData = []; // 格式: { time: '10:00:00', names: ['张三', '李四'], marks: {} }
+  let lastDrawnId = -1; // 记录最后一次抽取的索引，用于奖罚
+
+  let isRunning = false;
+  let intervalId = null;
+  
+  // 设置项
+  let drawCount = 1;
+  let allowRepeat = false;
+
+  // DOM元素
+  const display = document.getElementById('nameDisplay');
+  const btn = document.getElementById('actionBtn');
+  const historyDisplay = document.getElementById('historyDisplay');
+  const actionPanel = document.getElementById('actionPanel');
+
+  // --- 音频系统 (Web Audio API) ---
+  let audioCtx = null;
+  function initAudio() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  }
+  function playTick() {
+    if(!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine'; osc.frequency.setValueAtTime(1000, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1500, audioCtx.currentTime + 0.05);
+    gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.05);
+  }
+  function playDone() {
+    if(!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'triangle'; osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.6);
+    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.6);
+  }
+
+  // --- 初始化逻辑 ---
+  function init() {
+    const saved = localStorage.getItem('cyberpunk_namelist');
+    initialNames = saved ? JSON.parse(saved) : [...defaultNames];
+    
+    drawCount = parseInt(localStorage.getItem('cyberpunk_drawCount') || '1');
+    allowRepeat = localStorage.getItem('cyberpunk_allowRepeat') === 'true';
+    
+    resetPool();
+  }
+
+  function resetPool() {
+    availableNames = [...initialNames];
+    historyData = [];
+    lastDrawnId = -1;
+    updateHistoryUI();
+    actionPanel.classList.remove('active');
+  }
+
+  // --- 核心抽取逻辑 ---
+  function toggle() {
+    initAudio(); // 确保音频上下文解锁
+    
+    // 防御：没有名单
+    if (availableNames.length === 0) {
+      if(initialNames.length === 0) return alert("名单为空，请先设置！");
+      display.innerHTML = "<span>全部抽完啦</span>";
+      display.classList.add('stopped');
+      btn.innerText = "🚀 重新开始";
+      resetPool();
+      return;
+    }
+
+    if (!isRunning) {
+      //【开始滚动】
+      isRunning = true;
+      actionPanel.classList.remove('active'); // 滚动时禁用奖罚
+      btn.innerText = "🛑 停！";
+      btn.style.background = "linear-gradient(45deg, #ff4d4d, #f9cb28)"; 
+      display.classList.remove('stopped', 'reward-flash', 'punish-flash');
+      
+      let tickCounter = 0;
+      intervalId = setInterval(() => {
+        // 视觉滚动：随机抓取设定数量的名字展示
+        let tempShow = [];
+        let tempPool = [...availableNames];
+        let actualDraw = Math.min(drawCount, tempPool.length);
+        for(let i=0; i<actualDraw; i++) {
+          let r = Math.floor(Math.random() * tempPool.length);
+          tempShow.push(tempPool[r]);
+          tempPool.splice(r, 1);
+        }
+        display.innerHTML = tempShow.map(n => `<span>${n}</span>`).join('');
+        
+        // 降低滴答声频率避免破音
+        tickCounter++;
+        if(tickCounter % 2 === 0) playTick();
+      }, 50);
+
+    } else {
+      //【停止抽取】
+      isRunning = false;
+      clearInterval(intervalId);
+      playDone();
+      
+      // 真实抽取逻辑
+      let actualDraw = Math.min(drawCount, availableNames.length);
+      let picked = [];
+      for(let i=0; i<actualDraw; i++) {
+        let r = Math.floor(Math.random() * availableNames.length);
+        picked.push(availableNames[r]);
+        if(!allowRepeat) {
+          availableNames.splice(r, 1); // 剔除
+        }
+      }
+
+      display.innerHTML = picked.map(n => `<span>${n}</span>`).join('');
+      display.classList.add('stopped');
+      
+      btn.innerText = "🚀 继续点名";
+      btn.style.background = "linear-gradient(45deg, #ff007f, #00e5ff)";
+      
+      // 记录数据
+      const now = new Date();
+      const timeStr = now.getHours().toString().padStart(2, '0') + ':' + 
+                      now.getMinutes().toString().padStart(2, '0') + ':' + 
+                      now.getSeconds().toString().padStart(2, '0');
+      
+      historyData.push({
+        time: timeStr,
+        names: picked,
+        marks: {} // 用于存储奖罚标记，如 marks['张三'] = '奖'
+      });
+      lastDrawnId = historyData.length - 1;
+      
+      updateHistoryUI();
+      fireConfetti();
+      
+      // 激活奖罚面板
+      actionPanel.classList.add('active');
+    }
+  }
+
+  // --- 奖罚系统逻辑 ---
+  function applyMark(type, flashClass) {
+    if (lastDrawnId === -1) return;
+    
+    // 给最后一次抽出的所有人打上标记
+    let currentRecord = historyData[lastDrawnId];
+    currentRecord.names.forEach(name => {
+      currentRecord.marks[name] = type;
+    });
+    
+    // 视觉反馈
+    display.classList.remove('stopped', 'reward-flash', 'punish-flash');
+    // 强制重绘以重新触发动画
+    void display.offsetWidth; 
+    display.classList.add(flashClass);
+    
+    updateHistoryUI();
+  }
+
+  // --- UI与数据处理 ---
+  function updateHistoryUI() {
+    if (historyData.length === 0) {
+      historyDisplay.innerText = "暂无记录";
+      return;
+    }
+    
+    let html = '';
+    // 倒序显示，最新的在最上面
+    for(let i = historyData.length - 1; i >= 0; i--) {
+      let record = historyData[i];
+      let namesStr = record.names.map(name => {
+        let mark = record.marks[name];
+        return mark ? `${name} [${mark}]` : name;
+      }).join('、');
+      
+      html += `<div>[${record.time}] - ${namesStr}</div>`;
+    }
+    historyDisplay.innerHTML = html;
+  }
+
+  function exportData() {
+    if(historyData.length === 0) return alert("当前没有记录可以导出哦！");
+    
+    let content = "===== 五2幸运儿 点名记录 =====\r\n";
+    content += `导出时间: ${new Date().toLocaleString()}\r\n`;
+    content += "==============================\r\n\r\n";
+    
+    historyData.forEach((record, index) => {
+      let namesStr = record.names.map(name => {
+        return record.marks[name] ? `${name}(${record.marks[name]})` : name;
+      }).join(', ');
+      content += `第 ${index + 1} 次 | ${record.time} | 选中: ${namesStr}\r\n`;
+    });
+
+    // 创建文件并下载
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    
+    const d = new Date();
+    const dateStr = `${d.getFullYear()}${(d.getMonth()+1).toString().padStart(2,'0')}${d.getDate().toString().padStart(2,'0')}_${d.getHours().toString().padStart(2,'0')}${d.getMinutes().toString().padStart(2,'0')}`;
+    a.download = `点名记录_${dateStr}.txt`;
+    
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // --- 键盘快捷键支持 ---
+  document.addEventListener('keydown', (e) => {
+    // 如果弹窗打开，或者焦点在输入框，不触发快捷键
+    const modal = document.getElementById('settingsModal');
+    if (modal.classList.contains('active')) return;
+    if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+
+    if (e.code === 'Space' || e.code === 'Enter') {
+      e.preventDefault(); // 阻止空格键默认翻页
+      toggle();
+    }
+  });
+
+  // --- 礼花特效 ---
+  function fireConfetti() {
+    const duration = 2000; const end = Date.now() + duration;
+    (function frame() {
+      confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#ff007f', '#00e5ff', '#ffffff', '#f9cb28']});
+      confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#ff007f', '#00e5ff', '#ffffff', '#f9cb28']});
+      if (Date.now() < end) requestAnimationFrame(frame);
+    }());
+  }
+
+  // --- 设置弹窗相关 ---
+  const modal = document.getElementById('settingsModal');
+  function openSettings() {
+    if(isRunning) return;
+    document.getElementById('nameInput').value = initialNames.join('\n');
+    document.getElementById('drawCountInput').value = drawCount;
+    document.getElementById('allowRepeatInput').checked = allowRepeat;
+    modal.classList.add('active');
+  }
+  function closeSettings() { modal.classList.remove('active'); }
+  function saveSettings() {
+    const rawNames = document.getElementById('nameInput').value;
+    const newNames = rawNames.split(/[\n,，]+/).map(n => n.trim()).filter(n => n !== "");
+    if(newNames.length === 0) return alert("名单不能为空哦！");
+
+    initialNames = newNames;
+    drawCount = parseInt(document.getElementById('drawCountInput').value) || 1;
+    allowRepeat = document.getElementById('allowRepeatInput').checked;
+
+    localStorage.setItem('cyberpunk_namelist', JSON.stringify(initialNames));
+    localStorage.setItem('cyberpunk_drawCount', drawCount);
+    localStorage.setItem('cyberpunk_allowRepeat', allowRepeat);
+
+    display.innerHTML = "<span>准备就绪</span>";
+    display.classList.add('stopped');
+    btn.innerText = "开始点名";
+    btn.style.background = "linear-gradient(45deg, #ff007f, #00e5ff)";
+    
+    resetPool();
+    closeSettings();
+  }
+
+  // 页面加载完成执行初始化
+  init();
+
+</script>
+</body>
+</html>
