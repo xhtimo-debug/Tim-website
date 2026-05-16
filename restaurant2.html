@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tim's Restaurant - English Class</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&family=Nunito:wght@400;600;800;900&display=swap');
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #fffaf0;
+            background-image: radial-gradient(#fde68a 2px, transparent 2px);
+            background-size: 30px 30px;
+        }
+
+        .title-font {
+            font-family: 'Comic Neue', cursive;
+        }
+
+        .no-scrollbar::-webkit-scrollbar {
+            height: 4px;
+            width: 4px;
+        }
+        .no-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .no-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #fcd34d;
+            border-radius: 10px;
+        }
+
+        .food-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .food-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 20px -5px rgba(251, 146, 60, 0.15);
+            border-color: #fdba74;
+        }
+        .food-emoji-container {
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .food-card:hover .food-emoji-container {
+            transform: scale(1.1) rotate(5deg);
+        }
+
+        .modal-enter {
+            animation: bounceIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        @keyframes bounceIn {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .speech-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: -8px;
+            width: 16px;
+            height: 16px;
+            background-color: white;
+            clip-path: polygon(100% 0, 0% 100%, 100% 100%);
+            border-bottom-left-radius: 4px;
+        }
+        
+        .custom-radio:checked + div {
+            background-color: #f97316;
+            color: white;
+            border-color: #f97316;
+            box-shadow: 0 4px 6px -1px rgba(249, 115, 22, 0.2);
+        }
+        .custom-radio:not(:checked) + div {
+            background-color: white;
+            color: #6b7280;
+            border-color: #e5e7eb;
+        }
+    </style>
+</head>
+<body class="h-[100dvh] w-full flex flex-col overflow-hidden text-gray-800">
+
+    <!-- Header (响应式调整) -->
+    <header class="bg-gradient-to-r from-orange-500 to-amber-400 text-white p-2 sm:p-3 md:p-4 shadow-lg flex justify-between items-center z-10 shrink-0">
+        <div class="flex items-center gap-2 sm:gap-3 ml-1 sm:ml-2 overflow-hidden">
+            <div id="header-rest-icon" class="bg-white rounded-full shadow-sm text-xl sm:text-2xl md:text-3xl flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 overflow-hidden border-2 border-white/50 shrink-0">🧑‍🍳</div>
+            <h1 id="header-rest-name" class="text-lg sm:text-2xl md:text-3xl font-black title-font tracking-wide drop-shadow-md truncate">Tim's Restaurant</h1>
+        </div>
+        <div class="flex items-center gap-3 sm:gap-5 mr-1 sm:mr-2 shrink-0">
+            <!-- 手机端缩小或隐藏长文本标语 -->
+            <div class="hidden sm:flex gap-2 md:gap-3 text-xs md:text-sm font-bold bg-white/20 backdrop-blur-sm py-1.5 px-3 md:py-2 md:px-5 rounded-full border border-white/40 shadow-sm">
+                <span class="flex items-center gap-1">🍽️ <span class="hidden md:inline">光盘行动</span></span>
+                <span class="w-px h-3 md:h-4 bg-white/50 my-auto hidden md:block"></span>
+                <span class="flex items-center gap-1">🌿 <span class="hidden lg:inline">Clear your plate!</span></span>
+            </div>
+            <!-- 设置按钮 -->
+            <button onclick="openSettings()" class="text-2xl sm:text-3xl hover:rotate-90 transition-transform duration-500 transform hover:scale-110 drop-shadow-md" title="Settings">⚙️</button>
+        </div>
+    </header>
+
+    <!-- Main Content (横竖屏自适应布局) -->
+    <main class="flex-1 flex w-full max-w-7xl mx-auto overflow-hidden p-2 pt-2 gap-2 sm:p-3 sm:gap-4 md:p-4 md:gap-6 md:pt-6 flex-col landscape:flex-row md:flex-row">
+        
+        <!-- Left Column: Menu (竖屏55%，横屏60%) -->
+        <div class="w-full h-[55%] landscape:w-[60%] landscape:h-full md:w-3/5 lg:w-2/3 bg-white/80 backdrop-blur-md rounded-[1.2rem] md:rounded-[2rem] shadow-xl border border-orange-100 flex flex-col overflow-hidden shrink-0 lg:shrink">
+            <!-- 导航栏 -->
+            <div class="p-2 sm:p-3 md:p-5 bg-white border-b border-orange-50 flex gap-2 md:gap-3 overflow-x-auto no-scrollbar shadow-sm z-10 relative shrink-0">
+                <button onclick="filterMenu('All')" class="menu-tab bg-orange-500 text-white px-4 py-1.5 md:px-6 md:py-2.5 rounded-xl md:rounded-2xl font-black text-sm md:text-lg shadow-md whitespace-nowrap transition-all">All Food</button>
+                <button onclick="filterMenu('Chinese')" class="menu-tab bg-orange-50 text-orange-600 px-4 py-1.5 md:px-6 md:py-2.5 rounded-xl md:rounded-2xl font-bold text-sm md:text-lg whitespace-nowrap transition-all">🇨🇳 Chinese</button>
+                <button onclick="filterMenu('Western')" class="menu-tab bg-orange-50 text-orange-600 px-4 py-1.5 md:px-6 md:py-2.5 rounded-xl md:rounded-2xl font-bold text-sm md:text-lg whitespace-nowrap transition-all">🍔 Western</button>
+                <button onclick="filterMenu('Drinks')" class="menu-tab bg-orange-50 text-orange-600 px-4 py-1.5 md:px-6 md:py-2.5 rounded-xl md:rounded-2xl font-bold text-sm md:text-lg whitespace-nowrap transition-all">🧃 Drinks</button>
+                <button onclick="filterMenu('Dessert')" class="menu-tab bg-orange-50 text-orange-600 px-4 py-1.5 md:px-6 md:py-2.5 rounded-xl md:rounded-2xl font-bold text-sm md:text-lg whitespace-nowrap transition-all">🍰 Dessert</button>
+            </div>
+            
+            <!-- 菜品网格区域 -->
+            <div id="menu-container" class="flex-1 overflow-y-auto p-3 md:p-6 grid grid-cols-2 sm:grid-cols-3 landscape:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-6 bg-orange-50/30 content-start">
+                <!-- Food items will be injected here by JS -->
+            </div>
+        </div>
+
+        <!-- Right Column: Order & Dialog (竖屏45%，横屏40%) -->
+        <div class="w-full h-[45%] landscape:w-[40%] landscape:h-full md:w-2/5 lg:w-1/3 bg-white rounded-[1.2rem] md:rounded-[2rem] shadow-xl border border-orange-100 flex flex-col overflow-hidden relative shrink-0 lg:shrink">
+            
+            <!-- Waitress Dialog (自适应缩小) -->
+            <div class="bg-amber-50 p-2 pt-3 md:p-5 md:pt-6 border-b border-amber-100 flex items-end gap-2 md:gap-3 z-10 shadow-sm relative shrink-0">
+                <div class="text-4xl md:text-6xl drop-shadow-md z-10">🧑‍🍳</div>
+                <div class="bg-white px-3 py-1.5 md:px-5 md:py-3 rounded-xl md:rounded-2xl shadow-sm border border-amber-100 speech-bubble relative mb-1 md:mb-2 w-full">
+                    <p class="text-orange-600 text-sm sm:text-base md:text-xl font-bold title-font tracking-wide">"What would you like?"</p>
+                </div>
+            </div>
+
+            <!-- Dining Option -->
+            <div class="p-2 md:p-4 bg-white flex justify-center gap-2 md:gap-3 border-b border-gray-100 shadow-[0_4px_6px_-6px_rgba(0,0,0,0.1)] z-0 shrink-0">
+                <label class="flex-1 cursor-pointer relative">
+                    <input type="radio" name="dining" value="eat-in" checked class="custom-radio sr-only">
+                    <div class="text-center py-1.5 md:py-2.5 rounded-lg md:rounded-xl border-2 font-black transition-all duration-300 text-xs sm:text-sm md:text-base">
+                        🍽️ <span class="hidden sm:inline md:hidden lg:inline">Eat in (堂食)</span><span class="inline sm:hidden md:inline lg:hidden">Eat in</span>
+                    </div>
+                </label>
+                <label class="flex-1 cursor-pointer relative">
+                    <input type="radio" name="dining" value="takeaway" class="custom-radio sr-only">
+                    <div class="text-center py-1.5 md:py-2.5 rounded-lg md:rounded-xl border-2 font-black transition-all duration-300 text-xs sm:text-sm md:text-base">
+                        🛍️ Takeaway
+                    </div>
+                </label>
+            </div>
+
+            <!-- Cart Items -->
+            <div id="cart-container" class="flex-1 overflow-y-auto p-2 md:p-4 flex flex-col gap-2 md:gap-3 bg-gray-50/50">
+                <!-- Empty Placeholder -->
+            </div>
+
+            <!-- Total and Actions (高度压缩，确保在一屏内显示) -->
+            <div class="bg-white p-3 md:p-5 border-t border-gray-100 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)] z-10 rounded-b-[1.2rem] md:rounded-b-[2rem] shrink-0">
+                <div class="flex justify-between items-end mb-2 md:mb-4 px-1 md:px-2">
+                    <span class="text-sm md:text-lg font-black text-gray-400 uppercase tracking-widest">Total</span>
+                    <span class="text-2xl md:text-4xl font-black text-orange-500 drop-shadow-sm leading-none">¥<span id="total-price">0</span></span>
+                </div>
+
+                <!-- Sentence Generator for class practice -->
+                <div class="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-xl md:rounded-2xl p-2 md:p-4 mb-2 md:mb-4 shadow-inner">
+                    <div class="flex justify-between items-center mb-1 md:mb-2">
+                        <span class="text-[0.65rem] md:text-xs font-black text-blue-500 uppercase tracking-widest bg-blue-100 px-1.5 py-0.5 md:px-2 md:py-1 rounded-md">🗣️ Let's speak!</span>
+                    </div>
+                    <p id="generated-sentence" class="text-sm sm:text-base md:text-xl font-bold text-blue-900 title-font italic leading-snug md:leading-relaxed">
+                        "I'd like ..., please."
+                    </p>
+                </div>
+
+                <div class="flex gap-2 md:gap-3">
+                    <button onclick="clearCart()" class="w-12 md:w-16 bg-red-50 hover:bg-red-100 text-red-500 font-bold rounded-xl md:rounded-2xl transition-all text-lg md:text-2xl flex items-center justify-center border border-red-100 hover:scale-105 active:scale-95" title="Clear plate">
+                        🧹
+                    </button>
+                    <button onclick="placeOrder()" class="flex-1 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-black py-2 md:py-4 rounded-xl md:rounded-2xl transition-all text-lg md:text-2xl shadow-lg shadow-orange-500/30 active:scale-95">
+                        Order Now
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Receipt (自适应内边距和滚动) -->
+    <div id="receipt-modal" class="hidden fixed inset-0 bg-gray-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white p-5 md:p-8 rounded-[1.5rem] md:rounded-[2rem] shadow-2xl max-w-sm w-full modal-enter relative border-t-8 border-orange-500 max-h-[90vh] flex flex-col">
+            <button onclick="closeModal()" class="absolute top-3 right-4 md:top-4 md:right-5 text-gray-300 hover:text-red-500 text-2xl md:text-3xl font-black transition-colors">&times;</button>
+            <div class="text-center mb-4 md:mb-6 pt-2 shrink-0">
+                <div id="modal-rest-icon" class="w-14 h-14 md:w-20 md:h-20 mx-auto mb-2 md:mb-3 text-4xl md:text-6xl flex items-center justify-center rounded-full overflow-hidden shadow-sm border-2 border-gray-100">🧑‍🍳</div>
+                <h2 id="modal-rest-name" class="text-xl md:text-2xl font-black title-font text-gray-800">Tim's Restaurant</h2>
+                <p class="text-gray-400 font-bold mt-1 uppercase text-xs md:text-sm tracking-wider">Receipt</p>
+            </div>
+            
+            <div id="receipt-items" class="border-t-2 border-b-2 border-dashed border-gray-200 py-3 md:py-5 mb-4 md:mb-5 flex flex-col gap-2 md:gap-3 overflow-y-auto no-scrollbar font-bold text-gray-600 text-sm md:text-base flex-1">
+                <!-- Receipt items -->
+            </div>
+            
+            <div class="flex justify-between items-center text-xl md:text-2xl font-black text-gray-800 mb-4 md:mb-6 shrink-0">
+                <span>Total:</span>
+                <span class="text-orange-500">¥<span id="receipt-total">0</span></span>
+            </div>
+
+            <div id="waitress-reply" class="bg-amber-50 text-orange-700 p-3 md:p-4 rounded-xl md:rounded-2xl text-center font-bold text-base md:text-xl mb-4 md:mb-6 title-font italic border border-amber-100 shrink-0">
+                "Here you are. Enjoy!"
+            </div>
+
+            <button onclick="closeModal()" class="w-full bg-gray-900 hover:bg-gray-800 text-white font-black py-3 md:py-4 rounded-xl md:rounded-2xl text-lg md:text-xl transition-all shadow-md active:scale-95 shrink-0">
+                Great, Thank You!
+            </button>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="hidden fixed inset-0 bg-gray-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-2 md:p-4">
+        <div class="bg-white p-4 md:p-8 rounded-[1.5rem] md:rounded-[2rem] shadow-2xl w-full max-w-2xl h-[95vh] md:h-[85vh] flex flex-col modal-enter relative">
+            <button onclick="closeSettings()" class="absolute top-4 right-4 md:top-6 md:right-6 text-gray-400 hover:text-red-500 text-2xl md:text-3xl font-black transition-colors">&times;</button>
+            <h2 class="text-xl md:text-3xl font-black mb-4 md:mb-6 flex items-center gap-2 md:gap-3 text-gray-800 shrink-0 pr-8">
+                <span class="bg-gray-100 p-1.5 md:p-2 rounded-lg md:rounded-xl">⚙️</span> Teacher Settings
+            </h2>
+            
+            <div class="overflow-y-auto flex-1 pr-1 md:pr-2 no-scrollbar flex flex-col gap-4 md:gap-6 border-t border-gray-100 pt-4 md:pt-6">
+                
+                <!-- Restaurant Identity -->
+                <div class="bg-white p-3 md:p-5 rounded-xl md:rounded-2xl border border-gray-200 shadow-sm flex flex-col gap-2 md:gap-3">
+                    <label class="block font-black text-gray-700 text-base md:text-lg">1. Restaurant Identity (餐厅信息)</label>
+                    <div class="flex items-center gap-2 md:gap-4">
+                        <div class="relative w-12 h-12 md:w-16 md:h-16 flex-shrink-0 rounded-full bg-gray-50 border-2 border-dashed border-gray-300 hover:border-orange-500 flex items-center justify-center overflow-hidden cursor-pointer transition-colors" title="Click to upload icon" onclick="document.getElementById('icon-upload').click()">
+                            <div id="setting-icon-preview" class="text-2xl md:text-4xl flex items-center justify-center w-full h-full">🧑‍🍳</div>
+                            <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                                <span class="text-white text-[10px] md:text-xs font-bold">Upload</span>
+                            </div>
+                            <input type="file" id="icon-upload" accept="image/*" class="hidden" onchange="handleIconUpload(event)">
+                        </div>
+                        <input type="text" id="setting-rest-name" class="flex-1 p-2 md:p-4 bg-gray-50 border border-gray-200 rounded-lg md:rounded-xl font-bold text-base md:text-xl text-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all" value="Tim's Restaurant">
+                    </div>
+                </div>
+                
+                <!-- Add Menu Item -->
+                <div class="bg-orange-50/50 p-3 md:p-5 rounded-xl md:rounded-2xl border border-orange-100 shadow-sm">
+                    <label class="block font-black text-orange-800 mb-2 md:mb-3 text-base md:text-lg">2. Add New Food (添加新菜品)</label>
+                    <div class="flex flex-col sm:flex-row gap-2 md:gap-3 mb-2 md:mb-3">
+                        <div class="flex gap-2">
+                            <input type="text" id="new-emoji" placeholder="Emoji" class="w-16 md:w-24 p-2 md:p-4 bg-white border border-orange-200 rounded-lg md:rounded-xl text-center text-lg md:text-2xl focus:outline-none focus:ring-2 focus:ring-orange-500" maxlength="2">
+                            <input type="number" id="new-price" placeholder="Price (¥)" class="w-24 md:w-32 p-2 md:p-4 bg-white border border-orange-200 rounded-lg md:rounded-xl font-bold text-sm md:text-lg focus:outline-none focus:ring-2 focus:ring-orange-500">
+                        </div>
+                        <input type="text" id="new-name" placeholder="English Name" class="flex-1 p-2 md:p-4 bg-white border border-orange-200 rounded-lg md:rounded-xl font-bold text-sm md:text-lg focus:outline-none focus:ring-2 focus:ring-orange-500">
+                    </div>
+                    <div class="flex gap-2 md:gap-3">
+                        <select id="new-category" class="flex-1 p-2 md:p-4 bg-white border border-orange-200 rounded-lg md:rounded-xl font-bold text-gray-700 text-sm md:text-lg focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer">
+                            <option value="Chinese">🇨🇳 Chinese</option>
+                            <option value="Western">🍔 Western</option>
+                            <option value="Drinks">🧃 Drinks</option>
+                            <option value="Dessert">🍰 Dessert</option>
+                        </select>
+                        <button onclick="addMenuItem()" class="bg-orange-500 hover:bg-orange-600 text-white font-black py-2 px-4 md:py-4 md:px-8 rounded-lg md:rounded-xl transition-all shadow-md active:scale-95 text-sm md:text-lg">Add (+)</button>
+                    </div>
+                </div>
+
+                <!-- Manage Menu Items -->
+                <div class="bg-white p-3 md:p-5 rounded-xl md:rounded-2xl border border-gray-200 shadow-sm flex-1 flex flex-col min-h-[200px]">
+                    <label class="block font-black text-gray-700 mb-2 md:mb-3 text-base md:text-lg">3. Manage Menu (菜品管理)</label>
+                    <div id="settings-menu-list" class="flex-1 overflow-y-auto bg-gray-50 border border-gray-100 rounded-lg md:rounded-xl p-2 flex flex-col gap-2">
+                        <!-- Items populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4 md:mt-6 pt-4 md:pt-6 border-t border-gray-100 flex justify-end gap-3 md:gap-4 shrink-0">
+                <button onclick="closeSettings()" class="bg-gray-100 hover:bg-gray-200 text-gray-600 font-black py-3 px-5 md:py-4 md:px-8 rounded-xl md:rounded-2xl text-sm md:text-lg transition-all active:scale-95">
+                    Cancel
+                </button>
+                <button onclick="saveSettings()" class="bg-gray-900 hover:bg-gray-800 text-white font-black py-3 px-6 md:py-4 md:px-10 rounded-xl md:rounded-2xl text-sm md:text-lg transition-all shadow-lg active:scale-95">
+                    Save & Apply
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let menuItems = [
+            // Chinese Food
+            { id: 1, name: "Jiaozi", price: 12, category: "Chinese", emoji: "🥟" },
+            { id: 2, name: "Fried rice", price: 15, category: "Chinese", emoji: "🍚" },
+            { id: 3, name: "Noodles", price: 15, category: "Chinese", emoji: "🍜" },
+            { id: 4, name: "Spring roll", price: 10, category: "Chinese", emoji: "🌯" },
+            { id: 5, name: "Baozi", price: 8, category: "Chinese", emoji: "🥟" },
+            { id: 6, name: "Hot pot", price: 50, category: "Chinese", emoji: "🍲" },
+            // Western Food
+            { id: 7, name: "Hot dog", price: 15, category: "Western", emoji: "🌭" },
+            { id: 8, name: "Sandwich", price: 18, category: "Western", emoji: "🥪" },
+            { id: 9, name: "Fish and chips", price: 25, category: "Western", emoji: "🍟" },
+            { id: 10, name: "Hamburger", price: 20, category: "Western", emoji: "🍔" },
+            { id: 11, name: "Pizza", price: 30, category: "Western", emoji: "🍕" },
+            // Drinks
+            { id: 12, name: "Tea", price: 5, category: "Drinks", emoji: "🍵" },
+            { id: 13, name: "Orange juice", price: 8, category: "Drinks", emoji: "🧃" },
+            { id: 14, name: "Apple juice", price: 8, category: "Drinks", emoji: "🍎" },
+            { id: 15, name: "Cola", price: 6, category: "Drinks", emoji: "🥤" },
+            { id: 16, name: "Coffee", price: 15, category: "Drinks", emoji: "☕" },
+            // Dessert
+            { id: 17, name: "Cake", price: 12, category: "Dessert", emoji: "🍰" },
+            { id: 18, name: "Ice cream", price: 10, category: "Dessert", emoji: "🍦" }
+        ];
+
+        let cart = [];
+        let currentFilter = 'All';
+        let audioCtx;
+        let customIconHTML = '🧑‍🍳';
+
+        function handleIconUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const base64Str = e.target.result;
+                customIconHTML = `<img src="${base64Str}" class="w-full h-full object-cover" alt="Logo">`;
+                document.getElementById('setting-icon-preview').innerHTML = customIconHTML;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function playCoinSound() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.type = 'sine'; 
+            osc.frequency.setValueAtTime(1000, audioCtx.currentTime);
+            osc.frequency.setValueAtTime(1500, audioCtx.currentTime + 0.05);
+            
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.4);
+        }
+
+        function playCheckoutSound() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const notes = [523.25, 659.25, 783.99, 1046.50]; 
+            notes.forEach((freq, index) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+                
+                const startTime = audioCtx.currentTime + (index * 0.08); 
+                
+                gain.gain.setValueAtTime(0, startTime);
+                gain.gain.linearRampToValueAtTime(0.15, startTime + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.5);
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                osc.start(startTime);
+                osc.stop(startTime + 0.5);
+            });
+        }
+
+        function init() {
+            renderMenu();
+            updateCartUI();
+        }
+
+        function renderMenu() {
+            const container = document.getElementById('menu-container');
+            container.innerHTML = '';
+
+            const filteredItems = currentFilter === 'All' 
+                ? menuItems 
+                : menuItems.filter(item => item.category === currentFilter);
+
+            filteredItems.forEach(item => {
+                const card = document.createElement('div');
+                // 响应式卡片样式适配
+                card.className = "food-card bg-white rounded-2xl md:rounded-[1.5rem] p-2 sm:p-3 md:p-4 shadow-sm border border-orange-50 flex flex-col items-center h-[160px] sm:h-[190px] md:h-[240px] relative cursor-pointer group overflow-hidden";
+                card.onclick = () => addToCart(item.id);
+                
+                card.innerHTML = `
+                    <div class="food-emoji-container w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full bg-amber-50 flex items-center justify-center mt-1 sm:mt-2 shadow-inner border border-amber-100">
+                        <span class="text-3xl sm:text-4xl md:text-5xl drop-shadow-sm">${item.emoji}</span>
+                    </div>
+                    <div class="text-center w-full mt-auto">
+                        <h3 class="font-black text-sm sm:text-base md:text-xl text-gray-800 leading-tight mb-1 sm:mb-2 md:mb-3 truncate px-1" title="${item.name}">${item.name}</h3>
+                        <div class="flex justify-between items-center w-full px-1">
+                            <span class="text-orange-500 font-black text-base sm:text-lg md:text-2xl drop-shadow-sm">¥${item.price}</span>
+                            <button class="bg-gray-900 text-white w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-lg sm:rounded-xl font-black text-base sm:text-lg md:text-xl flex items-center justify-center hover:bg-orange-500 transition-colors shadow-sm pb-0.5 sm:pb-1">+</button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function filterMenu(category) {
+            currentFilter = category;
+            
+            document.querySelectorAll('.menu-tab').forEach(tab => {
+                if(tab.innerText.includes(category) || (category === 'All' && tab.innerText === 'All Food')) {
+                    tab.className = "menu-tab bg-orange-500 text-white px-4 py-1.5 md:px-6 md:py-2.5 rounded-xl md:rounded-2xl font-black text-sm md:text-lg shadow-md whitespace-nowrap transition-all";
+                } else {
+                    tab.className = "menu-tab bg-orange-50 text-orange-600 px-4 py-1.5 md:px-6 md:py-2.5 rounded-xl md:rounded-2xl font-bold text-sm md:text-lg whitespace-nowrap transition-all hover:bg-orange-100";
+                }
+            });
+
+            renderMenu();
+        }
+
+        function addToCart(id) {
+            const item = menuItems.find(i => i.id === id);
+            const existingItem = cart.find(i => i.id === id);
+
+            if (existingItem) {
+                existingItem.quantity += 1;
+            } else {
+                cart.push({ ...item, quantity: 1 });
+            }
+            playCoinSound(); 
+            updateCartUI();
+        }
+
+        function removeFromCart(id) {
+            const index = cart.findIndex(i => i.id === id);
+            if (index > -1) {
+                if (cart[index].quantity > 1) {
+                    cart[index].quantity -= 1;
+                } else {
+                    cart.splice(index, 1);
+                }
+            }
+            updateCartUI();
+        }
+
+        function clearCart() {
+            if(cart.length === 0) return;
+            cart = [];
+            updateCartUI();
+            
+            const sentenceBox = document.getElementById('generated-sentence');
+            sentenceBox.innerText = "🌟 Great! Clear your plate! (光盘行动)";
+            sentenceBox.classList.add("text-orange-500");
+            setTimeout(() => {
+                sentenceBox.classList.remove("text-orange-500");
+                updateCartUI(); 
+            }, 2000);
+        }
+
+        function updateCartUI() {
+            const container = document.getElementById('cart-container');
+            const totalEl = document.getElementById('total-price');
+            
+            if (cart.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-gray-400 mt-4 sm:mt-8 md:mt-12 text-sm md:text-lg flex flex-col items-center gap-2 md:gap-3 opacity-60">
+                        <div class="w-16 h-16 md:w-24 md:h-24 bg-gray-200 rounded-full flex items-center justify-center text-3xl md:text-5xl border-2 md:border-4 border-gray-100">🍽️</div>
+                        <span class="font-bold mt-1 md:mt-2">Your plate is empty.<br>Click "+" to order food!</span>
+                    </div>`;
+                totalEl.innerText = '0';
+                generateSentence();
+                return;
+            }
+
+            container.innerHTML = '';
+            let total = 0;
+
+            cart.forEach(item => {
+                total += item.price * item.quantity;
+                const row = document.createElement('div');
+                // 响应式购物车行
+                row.className = "flex justify-between items-center bg-white p-2 md:p-3.5 rounded-xl md:rounded-2xl shadow-sm border border-gray-100 shrink-0";
+                row.innerHTML = `
+                    <div class="flex items-center gap-2 md:gap-4">
+                        <div class="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-amber-50 rounded-full flex items-center justify-center text-lg md:text-2xl">${item.emoji}</div>
+                        <div>
+                            <div class="font-black text-gray-800 text-sm md:text-lg leading-tight truncate max-w-[100px] sm:max-w-full">${item.name}</div>
+                            <div class="text-[10px] md:text-sm font-bold text-gray-400 mt-0.5">¥${item.price} x ${item.quantity}</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 md:gap-4">
+                        <span class="font-black text-orange-500 text-base md:text-xl">¥${item.price * item.quantity}</span>
+                        <button onclick="removeFromCart(${item.id})" class="text-gray-300 hover:text-red-500 hover:bg-red-50 w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center font-black text-base md:text-xl transition-colors pb-0.5 md:pb-1">-</button>
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+
+            totalEl.innerText = total;
+            generateSentence();
+        }
+
+        function generateSentence() {
+            const sentenceEl = document.getElementById('generated-sentence');
+            
+            if (cart.length === 0) {
+                sentenceEl.innerText = `"I'd like ..., please."`;
+                return;
+            }
+
+            const itemNames = cart.map(item => item.name.toLowerCase());
+
+            let foodString = "";
+            if (itemNames.length === 1) {
+                foodString = itemNames[0];
+            } else if (itemNames.length === 2) {
+                foodString = itemNames[0] + " and " + itemNames[1];
+            } else {
+                const last = itemNames.pop();
+                foodString = itemNames.join(", ") + " and " + last;
+            }
+
+            const isTakeaway = document.querySelector('input[name="dining"]:checked').value === 'takeaway';
+            
+            let sentence = `"I'd like some ${foodString}, please.`;
+            if(isTakeaway) {
+                sentence += ` For takeaway!"`;
+            } else {
+                sentence += ` "`;
+            }
+
+            sentenceEl.innerText = sentence;
+        }
+
+        function openSettings() {
+            document.getElementById('settings-modal').classList.remove('hidden');
+            renderSettingsMenu();
+        }
+
+        function closeSettings() {
+            document.getElementById('settings-modal').classList.add('hidden');
+        }
+
+        function renderSettingsMenu() {
+            const list = document.getElementById('settings-menu-list');
+            list.innerHTML = '';
+            
+            menuItems.forEach(item => {
+                const row = document.createElement('div');
+                row.className = "flex justify-between items-center p-2 md:p-3 bg-white rounded-lg md:rounded-xl shadow-sm border border-gray-100 shrink-0";
+                row.innerHTML = `
+                    <div class="flex items-center gap-2 md:gap-3 overflow-hidden">
+                        <span class="text-xl md:text-2xl">${item.emoji}</span>
+                        <div class="truncate">
+                            <div class="font-bold text-gray-800 text-sm md:text-base truncate">${item.name}</div>
+                            <div class="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wide mt-0.5">${item.category} · ¥${item.price}</div>
+                        </div>
+                    </div>
+                    <button onclick="removeMenuItem(${item.id})" class="text-gray-400 hover:text-red-500 hover:bg-red-50 p-1.5 md:p-2 rounded-lg transition-colors shrink-0">🗑️</button>
+                `;
+                list.appendChild(row);
+            });
+        }
+
+        function addMenuItem() {
+            const emoji = document.getElementById('new-emoji').value.trim();
+            const name = document.getElementById('new-name').value.trim();
+            const priceStr = document.getElementById('new-price').value.trim();
+            const price = parseInt(priceStr);
+            const category = document.getElementById('new-category').value;
+
+            if(!emoji || !name || isNaN(price)) {
+                alert("Please fill in Emoji, Name, and Price completely!");
+                return;
+            }
+
+            menuItems.push({
+                id: Date.now(), 
+                name: name,
+                price: price,
+                category: category,
+                emoji: emoji
+            });
+
+            document.getElementById('new-emoji').value = '';
+            document.getElementById('new-name').value = '';
+            document.getElementById('new-price').value = '';
+            
+            renderSettingsMenu();
+        }
+
+        function removeMenuItem(id) {
+            menuItems = menuItems.filter(item => item.id !== id);
+            cart = cart.filter(item => item.id !== id); 
+            renderSettingsMenu();
+        }
+
+        function saveSettings() {
+            const newName = document.getElementById('setting-rest-name').value.trim();
+            if(newName) {
+                document.getElementById('header-rest-name').innerText = newName;
+                document.getElementById('modal-rest-name').innerText = newName;
+            }
+
+            document.getElementById('header-rest-icon').innerHTML = customIconHTML;
+            document.getElementById('modal-rest-icon').innerHTML = customIconHTML;
+            
+            renderMenu();
+            updateCartUI();
+            closeSettings();
+        }
+
+        function placeOrder() {
+            if (cart.length === 0) {
+                alert("Please select some food first!");
+                return;
+            }
+
+            playCheckoutSound(); 
+
+            const modal = document.getElementById('receipt-modal');
+            const receiptItems = document.getElementById('receipt-items');
+            const receiptTotal = document.getElementById('receipt-total');
+            const waitressReply = document.getElementById('waitress-reply');
+            
+            receiptItems.innerHTML = '';
+            let total = 0;
+            cart.forEach(item => {
+                total += item.price * item.quantity;
+                receiptItems.innerHTML += `
+                    <div class="flex justify-between items-center text-gray-700 p-1 shrink-0">
+                        <span class="truncate pr-2">${item.name} <span class="text-gray-400 text-xs md:text-sm ml-1">x${item.quantity}</span></span>
+                        <span class="font-black text-base md:text-lg text-gray-800 shrink-0">¥${item.price * item.quantity}</span>
+                    </div>
+                `;
+            });
+            receiptTotal.innerText = total;
+
+            const isTakeaway = document.querySelector('input[name="dining"]:checked').value === 'takeaway';
+            if(isTakeaway) {
+                waitressReply.innerText = `"Here are your takeaway boxes. Goodbye!"`;
+            } else {
+                waitressReply.innerText = `"OK. Here you are. Enjoy your food!"`;
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('receipt-modal').classList.add('hidden');
+            clearCart();
+        }
+
+        document.querySelectorAll('input[name="dining"]').forEach(radio => {
+            radio.addEventListener('change', generateSentence);
+        });
+
+        init();
+
+    </script>
+</body>
+</html>
