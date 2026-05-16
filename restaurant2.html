@@ -228,29 +228,28 @@
                 <div class="bg-orange-50 p-4 rounded-2xl border border-orange-100">
                     <label class="block font-black text-orange-800 mb-3 text-sm">Add New Food (添加新菜品)</label>
                     
-                    <div class="flex gap-2 mb-3 items-center">
-                        
-                        <!-- 选项一：直接输入 Emoji -->
-                        <div class="flex flex-col items-center gap-1">
-                            <input type="text" id="new-emoji" placeholder="🍔" class="w-14 h-14 p-2 bg-white border border-orange-200 focus:border-orange-500 rounded-xl text-center text-2xl outline-none focus:ring-2 focus:ring-orange-500 transition-all" maxlength="2" oninput="clearFoodImg(event)">
-                            <span class="text-[10px] text-gray-500 font-bold">Emoji</span>
-                        </div>
-                        
-                        <span class="text-gray-300 font-black text-sm mx-1">OR</span>
-                        
-                        <!-- 选项二：上传图片 -->
-                        <div class="flex flex-col items-center gap-1 relative">
-                            <div class="w-14 h-14 bg-white border-2 border-dashed border-orange-300 hover:border-orange-500 rounded-xl flex items-center justify-center shrink-0 overflow-hidden cursor-pointer transition-colors" onclick="document.getElementById('food-img-upload').click()">
-                                <span class="text-orange-400 text-xs font-bold flex flex-col items-center leading-none"><span>📷</span><span class="mt-1">Img</span></span>
-                                <img id="new-image-preview" src="" class="hidden w-full h-full object-cover absolute inset-0 z-20 bg-white">
+                    <div class="flex gap-3 mb-3 items-start">
+                        <!-- 二合一输入框: 默认输入Emoji，角落有上传图片的相机按钮 -->
+                        <div class="relative w-16 h-16 bg-white border-2 border-dashed border-orange-300 hover:border-orange-500 rounded-xl shrink-0 flex flex-col items-center justify-center overflow-hidden group">
+                            <!-- Emoji 输入框 -->
+                            <input type="text" id="new-emoji" placeholder="🍔" class="absolute inset-0 w-full h-full text-center text-3xl outline-none bg-transparent placeholder-gray-300 z-10" maxlength="2" oninput="clearFoodImg(event)">
+                            
+                            <!-- 图片预览 -->
+                            <img id="new-image-preview" src="" class="hidden absolute inset-0 w-full h-full object-cover z-20 bg-white">
+                            
+                            <!-- 角落里的小相机(点击上传图片) -->
+                            <div id="upload-btn-overlay" class="absolute bottom-0 right-0 bg-orange-100 text-orange-600 hover:bg-orange-200 text-[10px] px-1 py-0.5 rounded-tl-lg z-30 cursor-pointer transition-colors shadow-sm" onclick="document.getElementById('food-img-upload').click()" title="Upload Image">
+                                📷
                             </div>
+                            <!-- 隐藏的 input file -->
                             <input type="file" id="food-img-upload" accept="image/*" class="hidden" onchange="handleFoodImgUpload(event)">
-                            <button id="clear-food-img" onclick="clearFoodImg(event)" class="hidden absolute -top-2 -right-2 bg-red-500 text-white w-5 h-5 rounded-full text-[12px] flex items-center justify-center z-30 font-black border border-white shadow-sm">&times;</button>
-                            <span class="text-[10px] text-gray-500 font-bold">Upload</span>
+                            
+                            <!-- 清除图片的 X 按钮 -->
+                            <button id="clear-food-img" onclick="clearFoodImg(event)" class="hidden absolute top-0 right-0 bg-red-500 text-white w-5 h-5 rounded-bl-lg text-[12px] flex items-center justify-center z-40 font-black shadow-sm">&times;</button>
                         </div>
 
                         <!-- 菜品名称与价格信息 -->
-                        <div class="flex flex-col gap-2 flex-1 ml-2">
+                        <div class="flex flex-col gap-2 flex-1">
                             <input type="text" id="new-name" placeholder="English Name" class="w-full p-2.5 bg-white border border-orange-200 rounded-lg font-bold text-sm outline-none focus:ring-2 focus:ring-orange-500 transition-all">
                             <div class="flex gap-2">
                                 <input type="number" id="new-price" placeholder="Price(¥)" class="w-1/3 p-2.5 bg-white border border-orange-200 rounded-lg font-bold text-sm outline-none focus:ring-2 focus:ring-orange-500 transition-all">
@@ -323,6 +322,7 @@
             reader.readAsDataURL(file);
         }
 
+        // 修改：处理图片上传，隐藏角落的小相机
         function handleFoodImgUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -333,13 +333,13 @@
                 imgPreview.src = newFoodImageBase64;
                 imgPreview.classList.remove('hidden');
                 document.getElementById('clear-food-img').classList.remove('hidden');
-                // 上传图片后自动清空 Emoji 输入框
-                document.getElementById('new-emoji').value = '';
+                document.getElementById('upload-btn-overlay').classList.add('hidden'); // 隐藏角落的小相机
+                document.getElementById('new-emoji').value = ''; // 自动清空 Emoji
             };
             reader.readAsDataURL(file);
         }
         
-        // 当点击叉号，或在Emoji框打字时触发
+        // 修改：清除图片，恢复角落的小相机
         function clearFoodImg(event) {
             if(event && event.type === 'click') event.stopPropagation();
             newFoodImageBase64 = null;
@@ -347,6 +347,7 @@
             imgPreview.src = '';
             imgPreview.classList.add('hidden');
             document.getElementById('clear-food-img').classList.add('hidden');
+            document.getElementById('upload-btn-overlay').classList.remove('hidden'); // 恢复角落小相机
             document.getElementById('food-img-upload').value = '';
         }
 
